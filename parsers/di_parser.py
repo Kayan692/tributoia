@@ -1,15 +1,19 @@
 """
 Parser universal para DI e DUIMP da Receita Federal do Brasil.
 
-ABORDAGEM: busca pelo NOME DO CAMPO e captura o numero ao lado.
-Nao busca por padrao de valor — qualquer DI com o mesmo campo vai funcionar.
-Suporta PDFs digitais e escaneados (OCR).
+ABORDAGEM: extrai o texto bruto do PDF e envia para Claude (IA) que lê os 
+campos pelo NOME, independente do formato ou despachante.
+Funciona com qualquer DI/DUIMP sem necessidade de ajustes manuais.
+
+Requer: variavel de ambiente ANTHROPIC_API_KEY configurada no sistema,
+ou o usuario insere a chave na interface.
 """
 import re
+import json
+import os
 import pdfplumber
 from dataclasses import dataclass, field
 from typing import Tuple
-from collections import Counter
 
 
 @dataclass
@@ -50,17 +54,13 @@ class DIData:
 
 
 def _clean_num(s):
-    """BR number to float. '1.234,56'->1234.56  '5,22880'->5.228  '124.952,05'->124952.05"""
-    if not s:
-        return 0.0
+    if not s: return 0.0
     s = str(s).strip()
     for tok in ["R$","USD","US$","CNY","EUR","BRL","%"]:
         s = s.replace(tok,"")
     s = s.strip()
-    if not s:
-        return 0.0
-    has_dot   = "." in s
-    has_comma = "," in s
+    if not s: return 0.0
+    has_dot, has_comma = "." in s, "," in s
     if has_dot and has_comma:
         if s.rfind(",") > s.rfind("."):
             s = s.replace(".","").replace(",",".")
@@ -78,377 +78,371 @@ def _clean_num(s):
         return 0.0
 
 
-def _f(pattern, text, group=1):
-    m = re.search(pattern, text, re.IGNORECASE)
-    return m.group(group).strip() if m else ""
-
-
-def _lookup(text, patterns):
-    """
-    Tenta cada (regex, estrategia) em ordem.
-    Estrategias:
-      direct  -> group(1)
-      second  -> group(2)
-      sum_all -> soma todas as ocorrencias de group(1)
-    """
-    for pat, strategy in patterns:
-        if strategy == "sum_all":
-            matches = re.findall(pat, text, re.IGNORECASE | re.MULTILINE)
-            if matches:
-                total = sum(_clean_num(v) for v in matches)
-                if total > 0:
-                    return total
-        elif strategy == "second":
-            m = re.search(pat, text, re.IGNORECASE | re.MULTILINE)
-            if m and m.lastindex and m.lastindex >= 2:
-                val = _clean_num(m.group(2))
-                if val > 0:
-                    return val
-        else:  # direct
-            m = re.search(pat, text, re.IGNORECASE | re.MULTILINE)
-            if m:
-                val = _clean_num(m.group(1))
-                if val > 0:
-                    return val
-    return 0.0
-
-
-# ============================================================
-# MAPA DE CAMPOS: (label_regex, estrategia)
-# Captura o NOME DO CAMPO e pega o numero ao lado.
-# Nao depende do valor — funciona em qualquer DI/DUIMP.
-# ============================================================
-FIELDS = {
-
-    "taxa_cambio": [
-        # "220 - USD - DOLAR DOS EUA: R$ 5,57370"   (DI padrao e DUIMP)
-        (r"220\s*[-]\s*USD[^:]*:\s*R\$\s*([\d.,]+)",            "direct"),
-        # "TX. DOLAR : 5,22880"                      (DI Santos/outros despachantes)
-        (r"TX\.\s*DOLAR\s*:\s*([\d.,]+)",                        "direct"),
-        # "TX. FRETE USD : 5,2288000"
-        (r"TX\.\s*FRETE\s+USD\s*:\s*([\d.,]+)",                  "direct"),
-        # "TX. SEGURO USD : 5,22880"
-        (r"TX\.\s*SEGURO\s+USD\s*:\s*([\d.,]+)",                 "direct"),
-        # "DOLAR DOS EUA: R$ 5,16820"
-        (r"DOLAR\s+DOS?\s+EUA[:\s]+R\$\s*([\d.,]+)",             "direct"),
-    ],
-
-    "vmle_usd": [
-        # "VMLE: DOLAR DOS ESTADOS UNIDOS  31.020,41"
-        (r"VMLE\s*:\s*D[O\xd3]LAR[^\n]+?([\d.,]{4,})\s*$",               "direct"),
-        # "VMLE: USD 31.020,41"  (DUIMP)
-        (r"VMLE\s+USD\s*:\s*([\d.,]+)",                          "direct"),
-        # "VMLE: USD 31.020,41 = R$ ..."
-        (r"VMLE\s*:\s*USD\s+([\d.,]+)",                          "direct"),
-    ],
-
-    "frete_usd": [
-        # "Frete: DOLAR DOS EUA 397,00"
-        (r"Frete\s*:\s*D[O\xd3]LAR[^\n]+?([\d.,]{4,})\s*$",              "direct"),
-        # "FRETE USD: 1.862,50"  (DUIMP)
-        (r"FRETE\s+USD\s*:\s*([\d.,]+)",                         "direct"),
-        # "FRETE EXTERNO: USD 1.740,00"
-        (r"FRETE\s+EXTERNO\s*:\s*USD\s*([\d.,]+)",               "direct"),
-        # "FRETE ORIGEM / FRONTEIRA...........US$ 1.740,00"
-        (r"FRETE\s+ORIGEM\s*/\s*FRONTEIRA[.\s]+US\$\s*([\d.,]+)","direct"),
-        # "TOTAL FRETE R$: 2.075,83 USD 397,00"  -> pega o USD
-        (r"TOTAL\s+FRETE\s+R\$\s*:\s*[\d.,]+\s+USD\s+([\d.,]+)", "direct"),
-    ],
-
-    "seguro_usd": [
-        # "Seguro: DOLAR DOS EUA 50,00"
-        (r"Seguro\s*:\s*D[O\xd3]LAR[^\n]+?([\d.,]{4,})\s*$",             "direct"),
-        # "SEGURO USD: 110,91"  (DUIMP)
-        (r"SEGURO\s+USD\s*:\s*([\d.,]+)",                        "direct"),
-        # "TOTAL SEGURO R$: 261,44 USD 50,00"
-        (r"TOTAL\s+SEGURO\s+R\$\s*:\s*[\d.,]+\s+USD\s+([\d.,]+)","direct"),
-    ],
-
-    "vmld_usd": [
-        # "VMLD: DOLAR DOS ESTADOS UNIDOS  23.896,78"
-        (r"VMLD\s*:\s*D[O\xd3]LAR[^\n]+?([\d.,]{4,})\s*$",               "direct"),
-        # "VMLD: 32.760,41"
-        (r"VMLD\s*:\s*([\d.,]+)",                                 "direct"),
-    ],
-
-    # Valor Aduaneiro R$ — usado como fallback para calcular cambio implicito
-    "va_brl": [
-        # "VALOR ADUANEIRO R$: 124.952,05"  (Santos)
-        (r"VALOR\s+ADUANEIRO\s+R\$\s*:\s*([\d.,]+)",              "direct"),
-        # "VALOR ADUANEIRO ........... R$ 182.596,69"  (padrao)
-        (r"VALOR\s+ADUANEIRO\s*[.\s]+R\$\s*([\d.,]+)",            "direct"),
-        # "VALOR ADUANEIRO . .. R$ 183.853,55"  (DUIMP)
-        (r"VALOR\s+ADUANEIRO\s*\.\s*\.\s*R\$\s*([\d.,]+)",        "direct"),
-    ],
-
-    # ── TRIBUTOS ─────────────────────────────────────────────────────────────
-    # Pagina 1 sumario: "I.I.:  0,00  22.558,25" -> col Suspenso / Recolhido
-    # Dados Complementares: "II R$: 22.558,25"
-    # DUIMP OCR: "IN. . R$ 36.770,71"
-
-    "ii": [
-        (r"^II\s+R\$\s*:\s*([\d.,]+)",                            "direct"),
-        (r"^I\.I\.\s*:\s*([\d.,]+)\s+([\d.,]+)",                  "second"),
-        (r"\bIN\b[.\s]+R\$\s*([\d.,]+)",                          "direct"),
-        (r"II\s*[.\s]+R\$\s*([\d.,]+)",                           "direct"),
-    ],
-
-    "ipi": [
-        (r"^IPI\s+R\$\s*:\s*([\d.,]+)",                           "direct"),
-        (r"^I\.P\.I\.\s*:\s*([\d.,]+)\s+([\d.,]+)",               "second"),
-        (r"IPI\s*[.\s]+R\$\s*([\d.,]+)",                          "direct"),
-    ],
-
-    "pis": [
-        (r"^PIS\s+R\$\s*:\s*([\d.,]+)",                           "direct"),
-        (r"^Pis/Pasep\s*:\s*([\d.,]+)\s+([\d.,]+)",               "second"),
-        (r"PIS\s*[.\s]+R\$\s*([\d.,]+)",                          "direct"),
-    ],
-
-    "cofins": [
-        (r"^COFINS\s+R\$\s*:\s*([\d.,]+)",                        "direct"),
-        (r"^Cofins\s*:\s*([\d.,]+)\s+([\d.,]+)",                  "second"),
-        (r"COFINS\s*[.\s]+R\$\s*([\d.,]+)",                       "direct"),
-    ],
-
-    "antidumping": [
-        (r"^Direitos\s+Antidumping\s*:\s*([\d.,]+)\s+([\d.,]+)",  "second"),
-        (r"ANTIDUMPING\s*[.\s]+R\$\s*([\d.,]+)",                  "direct"),
-    ],
-
-    # ── SISCOMEX ──────────────────────────────────────────────────────────────
-    # Total: "TX. SISCOMEX R$: 331,62"
-    # DI padrao: "TAXA UTILIZAÇÃO ........ R$ 154,23"
-    # Por adicao: "TAXA SISCOMEX R$: 221,50" (soma todas)
-    "siscomex": [
-        (r"TX\.\s*SISCOMEX\s+R\$\s*:\s*([\d.,]+)",                "direct"),
-        (r"TAXA\s+UTILIZA[CcÇç][AaÃã]O\s*[.\s]+R\$\s*([\d.,]+)", "direct"),
-        (r"TAXA\s+SISCOMEX\s+R\$\s*:\s*([\d.,]+)",                "sum_all"),
-    ],
-
-    # ── AFRMM ─────────────────────────────────────────────────────────────────
-    # "A.F.R.M.M: R$: 208,06"
-    # "AFRMM (MARINHA MERCANTE) ....... R$ 807,01"
-    # Por adicao: "A.F.R.M.M: R$: 154,41" (soma todas)
-    "afrmm": [
-        (r"A\.F\.R\.M\.M\s*:\s*R\$\s*:\s*([\d.,]+)",              "direct"),
-        (r"AFRMM\s*\(?MARINHA\s+MERCANTE\)?\s*[.\s]+R\$\s*([\d.,]+)","direct"),
-        (r"AFRMM\s*[.\s]+R\$\s*([\d.,]+)",                        "direct"),
-        (r"A\.F\.R\.M\.M\s*R\$\s*:\s*([\d.,]+)",                  "sum_all"),
-    ],
-
-    # ── ICMS ──────────────────────────────────────────────────────────────────
-    # Total: "VALOR ICMS R$: 34.538,81"
-    # DI padrao: "ICMS A RECOLHER (6,00%) ........ R$ 13.034,43"
-    # Por adicao: "ICMS A RECOLHER (18,00%): R$ 24.329,70"
-    "icms_valor_doc": [
-        (r"VALOR\s+ICMS\s+R\$\s*:\s*([\d.,]+)",                   "direct"),
-        (r"ICMS\s+A\s+RECOLHER\s*\([^)]+\)\s*[.\s]+R\$\s*([\d.,]+)","direct"),
-        (r"ICMS\s+[Aa\xc0\xe0]\s+RECOLHER\s*\([^)]+\)\s*:\s*R\$\s*([\d.,]+)","sum_all"),
-        (r"ICMS\s+CALCULADO\s*\([^)]+\)\s*[.\s]+R\$\s*([\d.,]+)", "direct"),
-        (r"ICMS\s+CALCULADO\s*\([^)]+\)\s*:\s*R\$\s*([\d.,]+)",   "direct"),
-    ],
-
-    "icms_base_doc": [
-        (r"BASE\s+ICMS\s+FINAL\s+R\$\s*:\s*([\d.,]+)",            "direct"),
-        (r"BASE\s+C[AaÁá]LCULO\s+ICMS\s*\([^)]+\)\s*[.\s]+R\$\s*([\d.,]+)","direct"),
-        (r"BASE\s+CALCULO\s+ICMS\s+R\$\s*:\s*([\d.,]+)",          "direct"),
-    ],
-}
-
-ICMS_ALIQ_PATS = [
-    r"ICMS\s+CALCULADO\s*\(([\d.,]+)%?\)",
-    r"ICMS\s+A\s+RECOLHER\s*\(([\d.,]+)%?\)",
-    r"ICMS\s+[Aa\xc0\xe0]\s+RECOLHER\s*\(([\d.,]+)%?\)",
-    r"BASE\s+C[AaÁá]LCULO\s+ICMS\s*\(([\d.,]+)%?\)",
-]
-
-
-def _extract_digital(pdf_path):
+def _extract_text(pdf_path: str) -> Tuple[str, bool]:
+    """Extrai texto do PDF. Usa OCR se necessario."""
     text = ""
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
             text += (page.extract_text() or "") + "\n"
-    return text
-
-
-def _extract_ocr(pdf_path):
-    try:
-        from pdf2image import convert_from_path
-        import pytesseract
-        pages = convert_from_path(pdf_path, dpi=200)
-        return "\n".join(pytesseract.image_to_string(p, lang="por") for p in pages)
-    except Exception:
-        return ""
-
-
-def _get_text(pdf_path):
-    text = _extract_digital(pdf_path)
+    
     if len(text.strip().replace("\n","")) < 100:
-        return _extract_ocr(pdf_path), True
+        try:
+            from pdf2image import convert_from_path
+            import pytesseract
+            pages = convert_from_path(pdf_path, dpi=200)
+            text = "\n".join(pytesseract.image_to_string(p, lang="por") for p in pages)
+            return text, True
+        except Exception:
+            pass
     return text, False
 
 
-def _parse(text, data):
+def _extract_with_ai(text: str, api_key: str) -> dict:
+    """
+    Envia o texto da DI para Claude e pede extracao estruturada dos campos.
+    Retorna dicionario com todos os campos necessarios.
+    """
+    import urllib.request
 
-    # Tipo e numero
-    duimp = _f(r"(\d{2}BR\d{10}-\d)", text)
-    if duimp:
-        data.di_number = duimp
-        data.doc_type  = "DUIMP"
-    else:
-        di = _f(r"Declara[cç][aã]o[:\s]+(\d{2}/\d{7}-\d)", text) or _f(r"(\d{2}/\d{7}-\d)", text)
-        data.di_number = di
-        data.doc_type  = "DI"
-    if "DUIMP" in text.upper() and data.doc_type == "DI":
-        data.doc_type = "DUIMP"
-    if not data.di_number:
-        data.alerts.append(("ERROR","Numero da DI/DUIMP nao encontrado"))
+    prompt = f"""Voce e um especialista em comercio exterior brasileiro.
+Abaixo esta o texto extraido de uma DI (Declaracao de Importacao) ou DUIMP da Receita Federal.
 
-    # Data
-    data.register_date = (
-        _f(r"Data do Registro[:\s]+(\d{2}/\d{2}/\d{4})", text) or
-        _f(r"gera[cç][aã]o do PDF[:\s]+(\d{2}/\d{2}/\d{4})", text) or
-        _f(r"(\d{2}/\d{2}/\d{4})", text)
+Extraia EXATAMENTE os seguintes campos e retorne APENAS um JSON valido, sem explicacoes:
+
+{{
+  "di_number": "numero da declaracao (ex: 25/1583944-3 ou 26BR0000171403-2)",
+  "register_date": "data do registro DD/MM/AAAA",
+  "doc_type": "DI ou DUIMP",
+  "importador_cnpj": "CNPJ do importador",
+  "importador_nome": "razao social do importador",
+  "exportador_nome": "nome do exportador/fabricante",
+  "exportador_pais": "pais de origem",
+  "ncm": "codigo NCM principal",
+  "produto_desc": "descricao do produto (max 150 chars)",
+  "incoterm": "incoterm (ex: FOB, CIF, FCA)",
+  "uf_desembaraco": "UF de desembaraco (ex: SP, PR, RJ)",
+  "vmle_usd": "valor VMLE em USD (numero)",
+  "frete_usd": "valor do frete em USD (numero)",
+  "seguro_usd": "valor do seguro em USD (numero)",
+  "vmld_usd": "valor VMLD em USD (numero)",
+  "taxa_cambio": "taxa de cambio R$/USD (numero com 4 decimais)",
+  "ii": "valor II - Imposto de Importacao RECOLHIDO em R$ (numero)",
+  "ipi": "valor IPI RECOLHIDO em R$ (numero)",
+  "pis": "valor PIS/Pasep RECOLHIDO em R$ (numero)",
+  "cofins": "valor COFINS RECOLHIDO em R$ (numero)",
+  "antidumping": "valor direitos antidumping em R$ (numero, 0 se nao houver)",
+  "siscomex": "valor taxa siscomex/taxa utilizacao em R$ (numero)",
+  "afrmm": "valor AFRMM em R$ (numero, 0 se nao houver)",
+  "icms_aliq": "aliquota ICMS em percentual (ex: 18.0 para 18%, 6.0 para 6%)",
+  "icms_valor_doc": "valor ICMS A RECOLHER em R$ (numero)",
+  "adicoes_count": "quantidade de adicoes (numero inteiro)"
+}}
+
+REGRAS IMPORTANTES:
+- Para tributos com colunas Suspenso/Recolhido: use SEMPRE o valor da coluna RECOLHIDO
+- Para ICMS: use o valor de ICMS A RECOLHER (nao o calculado se forem diferentes)
+- Para aliquota ICMS: use a aliquota nominal do ICMS CALCULADO (ex: 18.0, nao 48.89)
+- Taxa de cambio: procure por "220 - USD", "Tx Dolar", "TX. DOLAR" ou similar
+- Se um campo nao existir, use 0 para numeros ou "" para texto
+- Retorne APENAS o JSON, sem markdown, sem explicacoes
+
+TEXTO DA DI:
+{text[:6000]}"""
+
+    payload = json.dumps({
+        "model": "claude-sonnet-4-20250514",
+        "max_tokens": 1000,
+        "messages": [{"role": "user", "content": prompt}]
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=payload,
+        headers={
+            "Content-Type": "application/json",
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01"
+        },
+        method="POST"
     )
+
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        result = json.loads(resp.read().decode("utf-8"))
+        content = result["content"][0]["text"].strip()
+        # Remove markdown if present
+        content = re.sub(r'^```json\s*', '', content)
+        content = re.sub(r'\s*```$', '', content)
+        return json.loads(content)
+
+
+def _fallback_regex(text: str, data: DIData):
+    """
+    Parser de fallback por regex para quando a API nao esta disponivel.
+    Cobre os formatos mais comuns ja mapeados.
+    """
+    from collections import Counter
+
+    def f(pat, t, g=1):
+        m = re.search(pat, t, re.IGNORECASE)
+        return m.group(g).strip() if m else ""
+
+    def num(s): return _clean_num(s)
+
+    def lookup(text, patterns):
+        for pat, strategy in patterns:
+            if strategy == "sum_all":
+                matches = re.findall(pat, text, re.IGNORECASE | re.MULTILINE)
+                if matches:
+                    total = sum(num(v) for v in matches)
+                    if total > 0: return total
+            elif strategy == "second":
+                m = re.search(pat, text, re.IGNORECASE | re.MULTILINE)
+                if m and m.lastindex and m.lastindex >= 2:
+                    val = num(m.group(2))
+                    if val > 0: return val
+            else:
+                m = re.search(pat, text, re.IGNORECASE | re.MULTILINE)
+                if m:
+                    val = num(m.group(1))
+                    if val > 0: return val
+        return 0.0
+
+    # Numero e data
+    data.di_number = (f(r"(\d{2}BR\d{10}-\d)", text) or
+                      f(r"Declara[cç][aã]o[:\s]+(\d{2}/\d{7}-\d)", text) or
+                      f(r"(\d{2}/\d{7}-\d)", text))
+    data.doc_type = "DUIMP" if "DUIMP" in text.upper() or re.search(r"\d{2}BR\d{10}", text) else "DI"
+    data.register_date = (f(r"Data do Registro[:\s]+(\d{2}/\d{2}/\d{4})", text) or
+                          f(r"(\d{2}/\d{2}/\d{4})", text))
 
     # Importador
     data.importador_cnpj = (
-        _f(r"CNPJ do importador[:\s]*([\d]{2}\.[\d]{3}\.[\d]{3}/[\d]{4}-[\d]{2})", text) or
-        _f(r"CNPJ[:\s]+([\d]{2}\.[\d]{3}\.[\d]{3}/[\d]{4}-[\d]{2})", text)
+        f(r"CNPJ do importador[:\s]*([\d]{2}\.[\d]{3}\.[\d]{3}/[\d]{4}-[\d]{2})", text) or
+        f(r"CNPJ[:\s]+([\d]{2}\.[\d]{3}\.[\d]{3}/[\d]{4}-[\d]{2})", text)
     )
     if data.importador_cnpj:
-        m = re.search(re.escape(data.importador_cnpj) + r"\s+([A-Z\xc0-\xff][^\n]+)", text)
-        if m:
-            data.importador_nome = m.group(1).strip()
-    if not data.importador_nome:
-        data.importador_nome = _f(r"Nome do importador[:\s]*\n?([A-Z\xc0-\xff][^\n]{5,80})", text)
+        m = re.search(re.escape(data.importador_cnpj) + r"\s+([A-Z][^\n]+)", text)
+        if m: data.importador_nome = m.group(1).strip()
 
-    # Todos os campos via FIELD_MAP
-    data.taxa_cambio    = _lookup(text, FIELDS["taxa_cambio"])
-    data.vmle_usd       = _lookup(text, FIELDS["vmle_usd"])
-    data.frete_usd      = _lookup(text, FIELDS["frete_usd"])
-    data.seguro_usd     = _lookup(text, FIELDS["seguro_usd"])
-    data.vmld_usd       = _lookup(text, FIELDS["vmld_usd"])
+    # Cambio - todos os formatos conhecidos
+    data.taxa_cambio = lookup(text, [
+        (r"220\s*[-]\s*USD[^:]*:\s*R\$\s*([\d.,]+)", "direct"),
+        (r"Tx\s+Dolar\s*:\s*([\d.,]+)", "direct"),
+        (r"TX\.\s*DOLAR\s*:\s*([\d.,]+)", "direct"),
+        (r"TX\.\s*FRETE\s+USD\s*:\s*([\d.,]+)", "direct"),
+        (r"DOLAR\s+DOS?\s+EUA[:\s]+R\$\s*([\d.,]+)", "direct"),
+    ])
+
+    # Valores USD
+    data.vmld_usd = lookup(text, [
+        (r"VMLD\s*:\s*D[O\xd3]LAR[^\n]+?([\d.,]{4,})\s*$", "direct"),
+        (r"VMLD\s*:\s*([\d.,]+)", "direct"),
+    ])
+    data.vmle_usd = lookup(text, [
+        (r"VMLE\s*:\s*D[O\xd3]LAR[^\n]+?([\d.,]{4,})\s*$", "direct"),
+        (r"VMLE\s+USD\s*:\s*([\d.,]+)", "direct"),
+    ])
+    data.frete_usd = lookup(text, [
+        (r"Frete\s*:\s*D[O\xd3]LAR[^\n]+?([\d.,]{4,})\s*$", "direct"),
+        (r"FRETE\s+USD\s*:\s*([\d.,]+)", "direct"),
+        (r"VALOR\s+FRETE\s*:\s*[\d.,]+\s+US\$\s*$", "direct"),
+    ])
     if data.vmld_usd == 0 and data.vmle_usd > 0:
         data.vmld_usd = data.vmle_usd + data.frete_usd + data.seguro_usd
 
     # Fallback cambio
     if data.taxa_cambio == 0:
-        va_brl = _lookup(text, FIELDS["va_brl"])
+        va_brl = lookup(text, [
+            (r"VALOR\s+ADUANEIRO\s+R\$\s*:\s*([\d.,]+)", "direct"),
+            (r"Valor\s+Aduaneiro\s*:\s*R\$\s*([\d.,]+)", "direct"),
+            (r"VALOR\s+ADUANEIRO\s*[.\s]+R\$\s*([\d.,]+)", "direct"),
+        ])
         if va_brl > 0 and data.vmld_usd > 0:
             data.taxa_cambio = va_brl / data.vmld_usd
-            data.alerts.append(("INFO",
-                f"Cambio calculado: VA(R${va_brl:,.2f}) / VMLD(USD{data.vmld_usd:,.2f}) = R${data.taxa_cambio:.4f}"))
         else:
-            data.alerts.append(("ERROR","Taxa de cambio nao encontrada"))
-
-    if data.vmld_usd == 0:
-        data.alerts.append(("ERROR","VMLD nao encontrado"))
+            data.alerts.append(("ERROR", "Taxa de cambio nao encontrada"))
 
     # Tributos
-    data.ii          = _lookup(text, FIELDS["ii"])
-    data.ipi         = _lookup(text, FIELDS["ipi"])
-    data.pis         = _lookup(text, FIELDS["pis"])
-    data.cofins      = _lookup(text, FIELDS["cofins"])
-    data.antidumping = _lookup(text, FIELDS["antidumping"])
-    data.siscomex    = _lookup(text, FIELDS["siscomex"])
-    data.afrmm       = _lookup(text, FIELDS["afrmm"])
-
-    if data.pis == 0 and data.cofins == 0:
-        data.alerts.append(("WARN","PIS e COFINS zerados — verificar"))
+    data.ii = lookup(text, [
+        (r"^II\s+R\$\s*:\s*([\d.,]+)", "direct"),
+        (r"^II\s*\([^)]+\)\s*:\s*R\$\s*([\d.,]+)", "direct"),
+        (r"^I\.I\.\s*:\s*([\d.,]+)\s+([\d.,]+)", "second"),
+        (r"\bIN\b[.\s]+R\$\s*([\d.,]+)", "direct"),
+    ])
+    data.ipi = lookup(text, [
+        (r"^IPI\s+R\$\s*:\s*([\d.,]+)", "direct"),
+        (r"^IPI\s*\([^)]+\)\s*:\s*R\$\s*([\d.,]+)", "direct"),
+        (r"^I\.P\.I\.\s*:\s*([\d.,]+)\s+([\d.,]+)", "second"),
+    ])
+    data.pis = lookup(text, [
+        (r"^PIS\s+R\$\s*:\s*([\d.,]+)", "direct"),
+        (r"^PIS\s*\([^)]+\)\s*:\s*R\$\s*([\d.,]+)", "direct"),
+        (r"^Pis/Pasep\s*:\s*([\d.,]+)\s+([\d.,]+)", "second"),
+    ])
+    data.cofins = lookup(text, [
+        (r"^COFINS\s+R\$\s*:\s*([\d.,]+)", "direct"),
+        (r"^Cofins\s*\([^)]+\)\s*:\s*R\$\s*([\d.,]+)", "direct"),
+        (r"^Cofins\s*:\s*([\d.,]+)\s+([\d.,]+)", "second"),
+    ])
+    data.siscomex = lookup(text, [
+        (r"TX\.\s*SISCOMEX\s+R\$\s*:\s*([\d.,]+)", "direct"),
+        (r"TAXA\s+UTILIZA[CcÇç][AaÃã]O\s*[.\s]+R\$\s*([\d.,]+)", "direct"),
+        (r"Taxa\s+Siscomex\s*\([^)]+\)\s*:\s*R\$\s*([\d.,]+)", "sum_all"),
+        (r"TAXA\s+SISCOMEX\s+R\$\s*:\s*([\d.,]+)", "sum_all"),
+    ])
+    data.afrmm = lookup(text, [
+        (r"A\.F\.R\.M\.M\s*:\s*R\$\s*:\s*([\d.,]+)", "direct"),
+        (r"^AFRMM\s*:\s*R\$\s*([\d.,]+)", "direct"),
+        (r"AFRMM\s*\(?MARINHA[^)]*\)?\s*[.\s]+R\$\s*([\d.,]+)", "direct"),
+        (r"A\.F\.R\.M\.M\s*R\$\s*:\s*([\d.,]+)", "sum_all"),
+    ])
+    data.antidumping = lookup(text, [
+        (r"Direitos\s+Antidumping\s*:\s*([\d.,]+)\s+([\d.,]+)", "second"),
+        (r"ANTIDUMPING\s*[.\s]+R\$\s*([\d.,]+)", "direct"),
+    ])
 
     # ICMS
-    data.icms_valor_doc = _lookup(text, FIELDS["icms_valor_doc"])
-    data.icms_base_doc  = _lookup(text, FIELDS["icms_base_doc"])
+    data.icms_valor_doc = lookup(text, [
+        (r"VALOR\s+ICMS\s+R\$\s*:\s*([\d.,]+)", "direct"),
+        (r"Valor\s+do\s+ICMS\s*:\s*R\$\s*([\d.,]+)", "direct"),
+        (r"ICMS\s+A\s+RECOLHER\s*\([^)]+\)\s*[.\s]+R\$\s*([\d.,]+)", "direct"),
+        (r"ICMS\s+[AÀ]\s+RECOLHER\s*\([^)]+\)\s*:\s*R\$\s*([\d.,]+)", "sum_all"),
+        (r"ICMS\s+CALCULADO\s*\([^)]+\)\s*[.\s]+R\$\s*([\d.,]+)", "direct"),
+    ])
+    data.icms_base_doc = lookup(text, [
+        (r"BASE\s+ICMS\s+FINAL\s+R\$\s*:\s*([\d.,]+)", "direct"),
+        (r"BASE\s+C[AÁ]LCULO\s+ICMS\s*\([^)]+\)\s*[.\s]+R\$\s*([\d.,]+)", "direct"),
+    ])
 
-    # Aliquota ICMS: usa ICMS CALCULADO (taxa nominal) com prioridade
-    # Ignora ICMS A RECOLHER (%) pois pode ser percentual de pagamento, nao a aliquota
-    aliq_list_calc = []
-    for m in re.finditer(r'ICMS\s+CALCULADO\s*\(([\d.,]+)%?\)', text, re.IGNORECASE):
-        try:
-            aliq_list_calc.append(float(m.group(1).replace(",",".")))
-        except ValueError:
-            pass
-    if aliq_list_calc:
-        data.icms_aliq = Counter(aliq_list_calc).most_common(1)[0][0] / 100.0
-    else:
-        # Fallback: BASE CALCULO ICMS (X%)
-        for m in re.finditer(r'BASE\s+C[AaÁá]LCULO\s+ICMS\s*\(([\d.,]+)%?\)', text, re.IGNORECASE):
-            try:
-                aliq_list_calc.append(float(m.group(1).replace(",",".")))
-            except ValueError:
-                pass
-        if aliq_list_calc:
-            data.icms_aliq = Counter(aliq_list_calc).most_common(1)[0][0] / 100.0
+    # Aliquota ICMS — usa ICMS CALCULADO com prioridade
+    aliq_list = []
+    for m in re.finditer(r"ICMS\s+CALCULADO\s*\(([\d.,]+)%?\)", text, re.IGNORECASE):
+        try: aliq_list.append(float(m.group(1).replace(",",".")))
+        except: pass
+    # Formato "x 18,0%" 
+    for m in re.finditer(r"Base\s+de\s+Calculo\s+ICMS[^\n]+x\s*([\d.,]+)%", text, re.IGNORECASE):
+        try: aliq_list.append(float(m.group(1).replace(",",".")))
+        except: pass
+    if not aliq_list:
+        for m in re.finditer(r"BASE\s+C[AÁ]LCULO\s+ICMS\s*\(([\d.,]+)%?\)", text, re.IGNORECASE):
+            try: aliq_list.append(float(m.group(1).replace(",",".")))
+            except: pass
 
-    # Aliquota ponderada real: aplica apenas quando ICMS e recolhimento integral
-    # (nao aplica quando parte do ICMS e isento/suspenso — ex: DUIMP com ICMS parcial)
+    if aliq_list:
+        from collections import Counter
+        data.icms_aliq = Counter(aliq_list).most_common(1)[0][0] / 100.0
+
+    # Aliquota ponderada (DI com aliquotas mistas)
     if data.icms_valor_doc > 0 and data.icms_base_doc > 0:
         pond = data.icms_valor_doc / data.icms_base_doc
-        # So usa ponderada se a diferenca e pequena (max 3pp) — indica aliquotas mistas
-        # Se diferenca e grande (ex: 18% nominal vs 8.8% pond), e ICMS parcial — mantem nominal
         if 0 < abs(pond - data.icms_aliq) <= 0.03:
             data.icms_aliq = pond
-            data.alerts.append(("INFO",
-                f"Aliquota ponderada ({pond*100:.2f}%) — DI com aliquotas mistas"))
-        elif abs(pond - data.icms_aliq) > 0.03:
-            data.alerts.append(("INFO",
-                f"ICMS parcialmente isento/suspenso — aliquota nominal {data.icms_aliq*100:.1f}% mantida"))
 
     if data.icms_aliq == 0:
-        data.alerts.append(("ERROR","Aliquota ICMS nao encontrada"))
+        data.alerts.append(("ERROR", "Aliquota ICMS nao encontrada"))
 
-    # NCMs / produto
+    # NCM e produto
     ncms = re.findall(r"NCM\s+([\d.]{8,11})", text, re.IGNORECASE)
     if ncms:
-        data.ncm       = ncms[0].strip()
+        data.ncm = ncms[0].strip()
         data.ncms_lista = list(dict.fromkeys(n.strip() for n in ncms))
-    desc = _f(r"Descri[cç][aã]o\s+Detalhada[^\n]*\n(.+?)(?:Certificado|Imposto de Importa)", text)
-    if not desc:
-        desc = _f(r"NCM[:\s]+[\d.]+\s*[-]\s*([^\n]+)", text)
-    data.produto_desc    = (desc or "").strip()[:200]
-    data.exportador_nome = _f(r"Nome\s*:\s*([A-Z][^\n]{5,80})", text)
-    data.exportador_pais = _f(r"Pa[ií]s de [Oo]rigem[:\s]+([^\n\r]+)", text)
-    data.incoterm        = _f(r"INCOTERM[:\s]+([A-Z]{3})", text)
+    desc = f(r"Descri[cç][aã]o\s+Detalhada[^\n]*\n(.+?)(?:Certificado|Imposto de Importa)", text)
+    if not desc: desc = f(r"NCM[:\s]+[\d.]+\s*[-]\s*([^\n]+)", text)
+    data.produto_desc = (desc or "").strip()[:200]
+    data.exportador_nome = f(r"Nome\s*:\s*([A-Z][^\n]{5,80})", text)
+    data.exportador_pais = f(r"Pa[ií]s de [Oo]rigem[:\s]+([^\n\r]+)", text)
+    data.incoterm = f(r"INCOTERM[:\s]+([A-Z]{3})", text)
 
     # UF
     uf_map = {
-        "FOZ DO IGUACU":"PR","FOZ DO IGUA\xc7U":"PR",
-        "SANTOS":"SP","S\xc3O PAULO":"SP","SAO PAULO":"SP",
-        "VIRACOPOS":"SP","GUARULHOS":"SP",
-        "PARANAGU\xc1":"PR","PARANAGUA":"PR",
-        "RIO DE JANEIRO":"RJ","GAL\xc3O":"RJ",
-        "VIT\xd3RIA":"ES","VITORIA":"ES",
-        "ITAJA\xcd":"SC","ITAJAI":"SC","NAVEGANTES":"SC",
-        "MANAUS":"AM","FORTALEZA":"CE",
-        "SALVADOR":"BA","RECIFE":"PE",
-        "PORTO ALEGRE":"RS","URUGUAIANA":"RS","CURITIBA":"PR",
+        "FOZ DO IGUACU":"PR","SANTOS":"SP","SAO PAULO":"SP","VIRACOPOS":"SP",
+        "GUARULHOS":"SP","PARANAGUA":"PR","RIO DE JANEIRO":"RJ","GALEAO":"RJ",
+        "VITORIA":"ES","ITAJAI":"SC","NAVEGANTES":"SC","MANAUS":"AM",
+        "FORTALEZA":"CE","SALVADOR":"BA","RECIFE":"PE","PORTO ALEGRE":"RS",
+        "URUGUAIANA":"RS","CURITIBA":"PR",
     }
+    text_up = text.upper()
     for key, uf in uf_map.items():
-        if key in text.upper():
+        if key in text_up:
             data.uf_desembaraco = uf
             break
 
-    # Adicoes
-    qtd = _f(r"Quantidade\s+de\s+Adi[cç][oõ]es\s*:\s*(\d+)", text)
+    qtd = f(r"Quantidade\s+de\s+Adi[cç][oõ]es\s*:\s*(\d+)", text)
     if qtd:
-        data.adicoes_count     = int(qtd)
+        data.adicoes_count = int(qtd)
         data.multiplas_adicoes = data.adicoes_count > 1
-        if data.multiplas_adicoes:
-            data.alerts.append(("INFO",
-                f"DI com {data.adicoes_count} adicoes, {len(data.ncms_lista)} NCMs. "
-                f"Valores totais consolidados foram usados."))
-
-    if data.taxa_cambio and (data.taxa_cambio < 1.0 or data.taxa_cambio > 20.0):
-        data.alerts.append(("WARN", f"Taxa de cambio suspeita: R${data.taxa_cambio:.4f}"))
 
 
-def parse_pdf(pdf_path):
+def parse_pdf(pdf_path: str, api_key: str = None) -> DIData:
+    """
+    Extrai dados de uma DI/DUIMP.
+    
+    Se api_key for fornecida, usa Claude (IA) para extrair os campos — 
+    funciona com qualquer formato, qualquer despachante.
+    
+    Se api_key nao for fornecida, usa parser por regex como fallback.
+    """
     data = DIData()
-    text, used_ocr = _get_text(pdf_path)
+    text, used_ocr = _extract_text(pdf_path)
     data.raw_text = text
+
     if used_ocr:
-        data.alerts.append(("INFO","PDF escaneado — OCR ativado"))
-    _parse(text, data)
+        data.alerts.append(("INFO", "PDF escaneado — OCR ativado"))
+
+    # Tenta API key do ambiente se nao fornecida
+    if not api_key:
+        api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+
+    if api_key:
+        try:
+            fields = _extract_with_ai(text, api_key)
+
+            # Popula o dataclass com o resultado da IA
+            data.di_number        = str(fields.get("di_number", ""))
+            data.register_date    = str(fields.get("register_date", ""))
+            data.doc_type         = str(fields.get("doc_type", "DI"))
+            data.importador_cnpj  = str(fields.get("importador_cnpj", ""))
+            data.importador_nome  = str(fields.get("importador_nome", ""))
+            data.exportador_nome  = str(fields.get("exportador_nome", ""))
+            data.exportador_pais  = str(fields.get("exportador_pais", ""))
+            data.ncm              = str(fields.get("ncm", ""))
+            data.produto_desc     = str(fields.get("produto_desc", ""))[:200]
+            data.incoterm         = str(fields.get("incoterm", ""))
+            data.uf_desembaraco   = str(fields.get("uf_desembaraco", ""))
+            data.vmle_usd         = float(fields.get("vmle_usd", 0) or 0)
+            data.frete_usd        = float(fields.get("frete_usd", 0) or 0)
+            data.seguro_usd       = float(fields.get("seguro_usd", 0) or 0)
+            data.vmld_usd         = float(fields.get("vmld_usd", 0) or 0)
+            data.taxa_cambio      = float(fields.get("taxa_cambio", 0) or 0)
+            data.ii               = float(fields.get("ii", 0) or 0)
+            data.ipi              = float(fields.get("ipi", 0) or 0)
+            data.pis              = float(fields.get("pis", 0) or 0)
+            data.cofins           = float(fields.get("cofins", 0) or 0)
+            data.antidumping      = float(fields.get("antidumping", 0) or 0)
+            data.siscomex         = float(fields.get("siscomex", 0) or 0)
+            data.afrmm            = float(fields.get("afrmm", 0) or 0)
+            data.icms_aliq        = float(fields.get("icms_aliq", 0) or 0) / 100.0
+            data.icms_valor_doc   = float(fields.get("icms_valor_doc", 0) or 0)
+            data.adicoes_count    = int(fields.get("adicoes_count", 1) or 1)
+            data.multiplas_adicoes = data.adicoes_count > 1
+
+            if data.vmld_usd == 0 and data.vmle_usd > 0:
+                data.vmld_usd = data.vmle_usd + data.frete_usd + data.seguro_usd
+
+            # Validacoes
+            if data.taxa_cambio == 0:
+                data.alerts.append(("ERROR", "Taxa de cambio nao encontrada"))
+            if data.icms_aliq == 0:
+                data.alerts.append(("ERROR", "Aliquota ICMS nao encontrada"))
+            if data.vmld_usd == 0:
+                data.alerts.append(("ERROR", "VMLD nao encontrado"))
+
+            data.alerts.append(("INFO", "Campos extraidos via IA (Claude)"))
+            return data
+
+        except Exception as e:
+            data.alerts.append(("WARN", f"IA indisponivel, usando parser padrao: {str(e)[:60]}"))
+
+    # Fallback: parser por regex
+    _fallback_regex(text, data)
     return data
