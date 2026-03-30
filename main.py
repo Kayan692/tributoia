@@ -7,7 +7,7 @@ import uuid
 import json
 import zipfile
 from pathlib import Path
-from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
 import uvicorn
 
@@ -30,18 +30,18 @@ HTML_PAGE = """<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Análise Tributária – Importação via Alagoas</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Overpass:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --ink:    #0D1B2A;
-    --steel:  #1B3A5C;
-    --cobalt: #2563EB;
-    --sky:    #DBEAFE;
-    --jade:   #064E3B;
-    --mint:   #D1FAE5;
-    --ember:  #CC3300;
-    --cream:  #F8F5EF;
-    --smoke:  #F1F5F9;
+    --ink:    #001742;
+    --steel:  #004194;
+    --cobalt: #FF7930;
+    --sky:    #C0EFFF;
+    --jade:   #004194;
+    --mint:   #C0EFFF;
+    --ember:  #FF7930;
+    --cream:  #FAFAFA;
+    --smoke:  #F3F3F3;
     --border: #E2E8F0;
     --muted:  #64748B;
   }
@@ -49,7 +49,7 @@ HTML_PAGE = """<!DOCTYPE html>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Overpass', sans-serif;
     background: var(--cream);
     color: var(--ink);
     min-height: 100vh;
@@ -57,7 +57,7 @@ HTML_PAGE = """<!DOCTYPE html>
 
   /* ── TOP BAR ── */
   .topbar {
-    background: var(--ink);
+    background: #001742;
     padding: 0 2.5rem;
     height: 56px;
     display: flex;
@@ -68,21 +68,21 @@ HTML_PAGE = """<!DOCTYPE html>
     z-index: 100;
   }
   .topbar-logo {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Oswald', sans-serif;
     font-size: 1.15rem;
     color: #fff;
     letter-spacing: 0.02em;
   }
   .topbar-tag {
     font-size: 0.72rem;
-    color: #94A3B8;
+    color: #C0EFFF;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }
 
   /* ── HERO ── */
   .hero {
-    background: linear-gradient(135deg, var(--steel) 0%, var(--ink) 100%);
+    background: linear-gradient(135deg, #004194 0%, #001742 100%);
     padding: 4rem 2.5rem 3.5rem;
     text-align: center;
     position: relative;
@@ -92,18 +92,18 @@ HTML_PAGE = """<!DOCTYPE html>
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(37,99,235,0.18) 0%, transparent 70%);
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,121,48,0.15) 0%, transparent 70%);
   }
   .hero-eyebrow {
     font-size: 0.72rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: #93C5FD;
+    color: #FF7930;
     margin-bottom: 1rem;
     position: relative;
   }
   .hero h1 {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Oswald', sans-serif;
     font-size: clamp(2rem, 5vw, 3.2rem);
     color: #fff;
     line-height: 1.15;
@@ -112,11 +112,11 @@ HTML_PAGE = """<!DOCTYPE html>
   }
   .hero h1 em {
     font-style: italic;
-    color: #93C5FD;
+    color: #FF7930;
   }
   .hero-sub {
     font-size: 1rem;
-    color: #94A3B8;
+    color: #C0EFFF;
     max-width: 520px;
     margin: 0 auto 2rem;
     line-height: 1.6;
@@ -133,7 +133,7 @@ HTML_PAGE = """<!DOCTYPE html>
   }
   .stat { text-align: center; }
   .stat-val {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Oswald', sans-serif;
     font-size: 1.8rem;
     color: #fff;
     display: block;
@@ -146,7 +146,7 @@ HTML_PAGE = """<!DOCTYPE html>
   }
   .stat-divider {
     width: 1px;
-    background: rgba(255,255,255,0.1);
+    background: rgba(255,121,48,0.3);
     align-self: stretch;
   }
 
@@ -170,11 +170,11 @@ HTML_PAGE = """<!DOCTYPE html>
     font-size: 0.7rem;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: var(--cobalt);
+    color: #FF7930;
     margin-bottom: 0.5rem;
   }
   .card-title {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Oswald', sans-serif;
     font-size: 1.5rem;
     color: var(--ink);
     margin-bottom: 0.4rem;
@@ -198,7 +198,7 @@ HTML_PAGE = """<!DOCTYPE html>
     position: relative;
   }
   .drop-zone:hover, .drop-zone.drag-over {
-    border-color: var(--cobalt);
+    border-color: #FF7930;
     background: var(--sky);
   }
   .drop-zone input[type=file] {
@@ -240,7 +240,7 @@ HTML_PAGE = """<!DOCTYPE html>
     color: #fff;
     border: none;
     border-radius: 10px;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Overpass', sans-serif;
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
@@ -249,9 +249,9 @@ HTML_PAGE = """<!DOCTYPE html>
     letter-spacing: 0.02em;
   }
   .btn-analyze:hover:not(:disabled) {
-    background: var(--steel);
+    background: #e66920;
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(37,99,235,0.3);
+    box-shadow: 0 6px 20px rgba(255,121,48,0.4);
   }
   .btn-analyze:disabled {
     opacity: 0.5;
@@ -269,7 +269,7 @@ HTML_PAGE = """<!DOCTYPE html>
     margin-bottom: 2rem;
   }
   .progress-title {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Oswald', sans-serif;
     font-size: 1.3rem;
     margin-bottom: 1.5rem;
     color: var(--ink);
@@ -294,8 +294,8 @@ HTML_PAGE = """<!DOCTYPE html>
     transition: all 0.3s;
   }
   .step-icon.pending  { background: var(--smoke); color: var(--muted); }
-  .step-icon.running  { background: var(--sky);   color: var(--cobalt); animation: pulse 1s infinite; }
-  .step-icon.done     { background: var(--mint);  color: var(--jade); }
+  .step-icon.running  { background: var(--sky);   color: #FF7930; animation: pulse 1s infinite; }
+  .step-icon.done     { background: #C0EFFF;  color: #004194; }
   .step-icon.error    { background: #FEE2E2;      color: var(--ember); }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   .step-label { font-size: 0.9rem; font-weight: 500; }
@@ -327,9 +327,9 @@ HTML_PAGE = """<!DOCTYPE html>
     flex-shrink: 0;
   }
   .result-title {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Oswald', sans-serif;
     font-size: 1.4rem;
-    color: var(--jade);
+    color: #004194;
   }
   .result-subtitle { font-size: 0.83rem; color: var(--muted); }
 
@@ -348,13 +348,13 @@ HTML_PAGE = """<!DOCTYPE html>
     border: 1px solid var(--border);
   }
   .kpi.highlight {
-    background: var(--mint);
-    border-color: #A7F3D0;
+    background: #C0EFFF;
+    border-color: #004194;
   }
   .kpi-value {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Oswald', sans-serif;
     font-size: 1.6rem;
-    color: var(--jade);
+    color: #004194;
     display: block;
     line-height: 1.2;
   }
@@ -392,7 +392,7 @@ HTML_PAGE = """<!DOCTYPE html>
   .comp-table tr:nth-child(even) td { background: var(--smoke); }
   .comp-table tr:hover td { background: var(--sky); }
   .comp-table .col-atual { background: #FFF0EE !important; }
-  .comp-table .col-al { background: #F0FFF4 !important; color: var(--jade); font-weight: 600; }
+  .comp-table .col-al { background: #C0EFFF !important; color: #004194; font-weight: 600; }
   .comp-table .col-eco { background: #FFFBEB !important; }
 
   /* Download buttons */
@@ -416,18 +416,18 @@ HTML_PAGE = """<!DOCTYPE html>
     color: var(--ink);
   }
   .btn-download:hover {
-    border-color: var(--cobalt);
+    border-color: #FF7930;
     background: var(--sky);
     transform: translateY(-1px);
   }
   .btn-download.primary {
     background: var(--cobalt);
-    border-color: var(--cobalt);
+    border-color: #FF7930;
     color: #fff;
   }
   .btn-download.primary:hover {
-    background: var(--steel);
-    border-color: var(--steel);
+    background: #e66920;
+    border-color: #e66920;
   }
   .dl-icon { font-size: 1.5rem; }
   .dl-title { font-size: 0.88rem; font-weight: 600; }
@@ -451,26 +451,26 @@ HTML_PAGE = """<!DOCTYPE html>
     border: 1.5px solid var(--border);
     border-radius: 10px;
     background: #fff;
-    font-family: 'DM Sans', sans-serif;
+    font-family: 'Overpass', sans-serif;
     font-size: 0.88rem;
     color: var(--muted);
     cursor: pointer;
     transition: all 0.2s;
   }
   .btn-new:hover {
-    border-color: var(--cobalt);
-    color: var(--cobalt);
+    border-color: #FF7930;
+    color: #FF7930;
   }
 
   /* ── HOW IT WORKS ── */
   .how-card {
-    background: var(--steel);
+    background: #004194;
     border-radius: 16px;
     padding: 2.5rem;
     margin-bottom: 2rem;
   }
   .how-title {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Oswald', sans-serif;
     font-size: 1.4rem;
     color: #fff;
     margin-bottom: 1.5rem;
@@ -486,22 +486,22 @@ HTML_PAGE = """<!DOCTYPE html>
     padding: 1.2rem;
   }
   .how-num {
-    font-family: 'DM Serif Display', serif;
+    font-family: 'Oswald', sans-serif;
     font-size: 2rem;
-    color: #93C5FD;
+    color: #FF7930;
     line-height: 1;
     margin-bottom: 0.5rem;
   }
   .how-step-title { font-size: 0.88rem; font-weight: 600; color: #fff; margin-bottom: 0.3rem; }
-  .how-step-desc { font-size: 0.78rem; color: #94A3B8; line-height: 1.5; }
+  .how-step-desc { font-size: 0.78rem; color: #C0EFFF; line-height: 1.5; }
 
   /* ── FOOTER ── */
   footer {
     text-align: center;
     padding: 2rem;
     font-size: 0.78rem;
-    color: #94A3B8;
-    border-top: 1px solid var(--border);
+    color: #C0EFFF;
+    border-top: 2px solid #FF7930;
   }
 
   /* Responsive */
@@ -517,13 +517,13 @@ HTML_PAGE = """<!DOCTYPE html>
 <body>
 
 <div class="topbar">
-  <span class="topbar-logo">TributoIA</span>
-  <span class="topbar-tag">Análise Tributária · Importação</span>
+  <span class="topbar-logo">SAYGO <span style="color:#FF7930;font-weight:400;font-size:0.85rem;letter-spacing:0.15em;">CÂMBIO</span></span>
+  <span class="topbar-tag" style="color:#FF7930;letter-spacing:0.1em;">ANÁLISE TRIBUTÁRIA · IMPORTAÇÃO VIA ALAGOAS</span>
 </div>
 
 <div class="hero">
-  <div class="hero-eyebrow">Eficiência Tributária na Importação</div>
-  <h1>Suba a DI ou DUIMP.<br><em>O sistema faz o resto.</em></h1>
+  <div class="hero-eyebrow">Saygo Câmbio · Benefícios Fiscais</div>
+  <h1>Suba a DI ou DUIMP.<br><em>A economia aparece na hora.</em></h1>
   <p class="hero-sub">
     Extração automática de dados, cálculo de ICMS, comparativo com Alagoas
     e geração de relatório executivo em segundos.
@@ -568,6 +568,18 @@ HTML_PAGE = """<!DOCTYPE html>
       <div class="drop-label">Arraste o PDF aqui ou clique para selecionar</div>
       <div class="drop-hint">Somente arquivos .pdf · DI ou DUIMP da Receita Federal</div>
       <div class="file-chosen" id="fileChosen"></div>
+    </div>
+
+    <div style="margin-top:1rem;">
+      <label style="font-size:0.82rem;font-weight:600;color:#1B3A5C;display:block;margin-bottom:0.4rem;">
+        Chave API Anthropic <span style="font-weight:400;color:#64748B;">(opcional — habilita leitura por IA para qualquer formato)</span>
+      </label>
+      <input type="password" id="apiKeyInput" placeholder="sk-ant-..." 
+        style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #E2E8F0;border-radius:8px;font-family:monospace;font-size:0.85rem;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#FF7930'" onblur="this.style.borderColor='#E2E8F0'"/>
+      <div style="font-size:0.75rem;color:#64748B;margin-top:0.3rem;">
+        Sem chave: usa parser padrão (pode falhar em alguns formatos). 
+        <a href="https://console.anthropic.com" target="_blank" style="color:#FF7930;">Obter chave gratuita</a>
+      </div>
     </div>
 
     <button class="btn-analyze" id="btnAnalyze" disabled onclick="runAnalysis()">
@@ -716,7 +728,7 @@ HTML_PAGE = """<!DOCTYPE html>
 </div>
 
 <footer>
-  Sistema de Análise Tributária · Importação via Alagoas · Uso Interno
+  SAYGO CÂMBIO · Análise Tributária DI/DUIMP · Importação via Alagoas
 </footer>
 
 <script>
@@ -778,6 +790,8 @@ HTML_PAGE = """<!DOCTYPE html>
 
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
+    const apiKey = document.getElementById('apiKeyInput').value.trim();
+    if (apiKey) formData.append('api_key', apiKey);
 
     // Animate steps while waiting
     const stepMessages = [
@@ -898,7 +912,7 @@ async def root():
 
 
 @app.post("/analyze")
-async def analyze(file: UploadFile = File(...)):
+async def analyze(file: UploadFile = File(...), api_key: str = Form(default="")):
     if not file.filename.endswith(".pdf"):
         raise HTTPException(400, "Somente arquivos PDF são aceitos")
 
@@ -913,7 +927,7 @@ async def analyze(file: UploadFile = File(...)):
 
     # Parse
     try:
-        data = parse_pdf(str(pdf_path))
+        data = parse_pdf(str(pdf_path), api_key=api_key or None)
     except Exception as e:
         raise HTTPException(500, f"Erro na leitura do PDF: {str(e)}")
 
