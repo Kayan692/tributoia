@@ -517,12 +517,12 @@ HTML_PAGE = """<!DOCTYPE html>
 <body>
 
 <div class="topbar">
-  <span class="topbar-logo">SAYGO <span style="color:#FF7930;font-weight:400;font-size:0.85rem;letter-spacing:0.15em;">CÂMBIO</span></span>
+  <span class="topbar-logo">SAYGO <span style="color:#FF7930;font-weight:400;font-size:0.85rem;letter-spacing:0.15em;">VISION</span></span>
   <span class="topbar-tag" style="color:#FF7930;letter-spacing:0.1em;">ANÁLISE TRIBUTÁRIA · IMPORTAÇÃO VIA ALAGOAS</span>
 </div>
 
 <div class="hero">
-  <div class="hero-eyebrow">Saygo Câmbio · Benefícios Fiscais</div>
+  <div class="hero-eyebrow">Saygo Vision · Benefícios Fiscais</div>
   <h1>Suba a DI ou DUIMP.<br><em>A economia aparece na hora.</em></h1>
   <p class="hero-sub">
     Extração automática de dados, cálculo de ICMS, comparativo com Alagoas
@@ -570,19 +570,7 @@ HTML_PAGE = """<!DOCTYPE html>
       <div class="file-chosen" id="fileChosen"></div>
     </div>
 
-    <div style="margin-top:1rem;">
-      <label style="font-size:0.82rem;font-weight:600;color:#1B3A5C;display:block;margin-bottom:0.4rem;">
-        Chave API Anthropic <span style="font-weight:400;color:#64748B;">(opcional — habilita leitura por IA para qualquer formato)</span>
-      </label>
-      <input type="password" id="apiKeyInput" placeholder="sk-ant-..." 
-        style="width:100%;padding:0.6rem 0.8rem;border:1.5px solid #E2E8F0;border-radius:8px;font-family:monospace;font-size:0.85rem;outline:none;transition:border-color 0.2s;" onfocus="this.style.borderColor='#FF7930'" onblur="this.style.borderColor='#E2E8F0'"/>
-      <div style="font-size:0.75rem;color:#64748B;margin-top:0.3rem;">
-        Sem chave: usa parser padrão (pode falhar em alguns formatos). 
-        <a href="https://console.anthropic.com" target="_blank" style="color:#FF7930;">Obter chave gratuita</a>
-      </div>
-    </div>
-
-    <button class="btn-analyze" id="btnAnalyze" disabled onclick="runAnalysis()">
+        <button class="btn-analyze" id="btnAnalyze" disabled onclick="runAnalysis()">
       Analisar documento
     </button>
   </div>
@@ -728,7 +716,7 @@ HTML_PAGE = """<!DOCTYPE html>
 </div>
 
 <footer>
-  SAYGO CÂMBIO · Análise Tributária DI/DUIMP · Importação via Alagoas
+  SAYGO VISION · Análise Tributária DI/DUIMP · Importação via Alagoas
 </footer>
 
 <script>
@@ -790,8 +778,7 @@ HTML_PAGE = """<!DOCTYPE html>
 
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
-    const apiKey = document.getElementById('apiKeyInput').value.trim();
-    if (apiKey) formData.append('api_key', apiKey);
+
 
     // Animate steps while waiting
     const stepMessages = [
