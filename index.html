@@ -1,0 +1,2968 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Intelligence — Central Comercial Saygo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+:root{--bg:#0c0c0e;--s1:#131316;--s2:#1a1a1e;--s3:#222228;--s4:#2a2a32;--bd:rgba(255,255,255,.07);--bd2:rgba(255,255,255,.13);--t1:#eceae3;--t2:#9a9890;--t3:#5a5856;--green:#00d49a;--green-d:rgba(0,212,154,.12);--red:#f04848;--red-d:rgba(240,72,72,.12);--amber:#f0a020;--amber-d:rgba(240,160,32,.12);--blue:#4888f0;--blue-d:rgba(72,136,240,.12);--purple:#9860f0;--purple-d:rgba(152,96,240,.12);--r:8px;--mono:'SF Mono','Fira Code',monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--t1);font-family:-apple-system,'Segoe UI',sans-serif;font-size:14px;line-height:1.55;min-height:100vh}
+
+/* ─ SCREENS ─ */
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex}
+
+/* ─ ONBOARDING ─ */
+#s-onboard{flex-direction:column;align-items:center;justify-content:center;padding:2rem;background:var(--bg)}
+.ob-wrap{width:100%;max-width:900px}
+.ob-steps{display:flex;gap:0;margin-bottom:2.5rem;border-bottom:1px solid var(--bd)}
+.ob-step-btn{padding:12px 20px;background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);font-size:13px;cursor:default;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.ob-step-btn.done{color:var(--green)}
+.ob-step-btn.active{color:var(--t1);border-bottom-color:var(--green)}
+.ob-step-num{width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--mono)}
+.ob-card{background:var(--s1);border:1px solid var(--bd2);border-radius:16px;padding:2rem 2.5rem}
+.ob-card h2{font-size:1.4rem;font-weight:800;letter-spacing:-.03em;margin-bottom:.4rem}
+.ob-card>p{color:var(--t2);font-size:13px;margin-bottom:1.5rem;line-height:1.65}
+.ob-step-content{display:none}
+.ob-step-content.active{display:block}
+
+/* guide boxes */
+.guide-box{background:var(--s2);border:1px solid var(--bd);border-radius:var(--r);padding:1.25rem 1.5rem;margin-bottom:1rem}
+.guide-box h4{font-size:13px;font-weight:700;margin-bottom:.5rem;display:flex;align-items:center;gap:6px}
+.guide-box ol,.guide-box ul{padding-left:1.25rem;color:var(--t2);font-size:13px;line-height:2}
+.guide-box li strong{color:var(--t1)}
+.guide-box .screenshot-hint{background:var(--s3);border:1px dashed var(--bd2);border-radius:6px;padding:.75rem 1rem;font-size:12px;color:var(--t3);font-family:var(--mono);margin-top:.75rem}
+
+/* form */
+.field{margin-bottom:1.1rem}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px}
+.field input,.field select{width:100%;background:var(--s2);border:1px solid var(--bd2);border-radius:var(--r);padding:10px 13px;color:var(--t1);font-size:14px;outline:none;transition:border-color .15s;font-family:inherit}
+.field input:focus,.field select:focus{border-color:var(--green)}
+.field input::placeholder{color:var(--t3)}
+.field-hint{font-size:11px;color:var(--t3);margin-top:4px;line-height:1.5}
+.field-hint a{color:var(--green);text-decoration:none}
+.field-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+
+/* test result */
+.test-result{padding:.75rem 1rem;border-radius:6px;font-size:13px;margin-top:.75rem;display:none}
+.test-result.ok{background:var(--green-d);border:1px solid rgba(0,212,154,.25);color:var(--green)}
+.test-result.err{background:var(--red-d);border:1px solid rgba(240,72,72,.25);color:var(--red)}
+
+/* buttons */
+.btn{border:none;border-radius:var(--r);padding:10px 18px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{opacity:.85}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-green{background:var(--green);color:#000}
+.btn-outline{background:none;border:1px solid var(--bd2);color:var(--t2)}
+.btn-outline:hover{border-color:var(--green);color:var(--green)}
+.ob-actions{display:flex;gap:.75rem;justify-content:flex-end;margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--bd)}
+
+/* ─ MAIN APP ─ */
+#s-app{flex-direction:column}
+.topbar{height:50px;background:var(--s1);border-bottom:1px solid var(--bd);display:flex;align-items:center;padding:0 1.25rem;gap:.75rem;position:sticky;top:0;z-index:50}
+.topbar-logo{font-weight:800;font-size:15px;letter-spacing:-.03em;white-space:nowrap}
+.topbar-logo span{color:var(--green)}
+.topbar-nav{display:flex;flex:1;overflow-x:auto;scrollbar-width:none}
+.topbar-nav::-webkit-scrollbar{display:none}
+.nav-btn{padding:0 13px;height:50px;background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);font-size:12px;cursor:pointer;white-space:nowrap;transition:all .12s;display:flex;align-items:center;gap:5px}
+.nav-btn:hover{color:var(--t2)}
+.nav-btn.active{color:var(--green);border-bottom-color:var(--green)}
+.topbar-right{display:flex;align-items:center;gap:8px;margin-left:auto;flex-shrink:0}
+.sync-btn{display:flex;align-items:center;gap:5px;padding:5px 11px;border:1px solid var(--bd2);border-radius:6px;background:none;color:var(--t3);font-size:12px;cursor:pointer;transition:all .12s}
+.sync-btn:hover{border-color:var(--green);color:var(--green)}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0}
+.sync-dot.spin{animation:blink 1s ease-in-out infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.last-sync{font-size:11px;color:var(--t3);font-family:var(--mono)}
+
+/* content */
+.app-content{flex:1;max-width:1400px;margin:0 auto;width:100%;padding:1.25rem}
+.view{display:none}
+.view.active{display:block}
+
+/* ─ KPI GRID ─ */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:.625rem;margin-bottom:1.25rem}
+.kpi{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:.875rem 1.1rem;border-top:2px solid}
+.kpi-g{border-top-color:var(--green)}
+.kpi-r{border-top-color:var(--red)}
+.kpi-a{border-top-color:var(--amber)}
+.kpi-b{border-top-color:var(--blue)}
+.kpi-p{border-top-color:var(--purple)}
+.kpi-label{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.07em;font-weight:700;margin-bottom:7px}
+.kpi-val{font-size:1.85rem;font-weight:900;line-height:1;letter-spacing:-.04em;margin-bottom:3px}
+.kpi-sub{font-size:11px;color:var(--t2)}
+
+/* ─ SECTION ─ */
+.sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.sec-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--t2);display:flex;align-items:center;gap:6px}
+.badge-count{background:var(--red);color:#fff;font-size:10px;font-weight:700;padding:1px 6px;border-radius:9px;font-family:var(--mono)}
+
+/* ─ ALERTS ─ */
+.alert-list{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1.25rem}
+.alert-item{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:.75rem 1rem;display:flex;align-items:flex-start;gap:.75rem;transition:border-color .12s}
+.alert-item:hover{border-color:var(--bd2)}
+.alert-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.dot-critical{background:var(--red);box-shadow:0 0 6px var(--red)}
+.dot-high{background:var(--amber)}
+.dot-medium{background:var(--blue)}
+.alert-body{flex:1;min-width:0}
+.alert-title-txt{font-size:13px;font-weight:600;margin-bottom:2px}
+.alert-desc-txt{font-size:12px;color:var(--t2);line-height:1.5}
+.alert-action-txt{font-size:11px;color:var(--green);margin-top:3px;font-weight:600}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.05em;font-family:var(--mono);flex-shrink:0}
+.badge-critical{background:var(--red-d);color:var(--red)}
+.badge-high{background:var(--amber-d);color:var(--amber)}
+.badge-medium{background:var(--blue-d);color:var(--blue)}
+.badge-low{background:var(--s3);color:var(--t3)}
+
+/* ─ CHARTS GRID ─ */
+.chart-grid{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.25rem}
+.chart-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:1.1rem 1.25rem}
+.chart-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--t3);margin-bottom:.875rem}
+
+/* ─ PROD TABLE ─ */
+.tbl-wrap{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;margin-bottom:1.25rem}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{padding:9px 13px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--t3);border-bottom:1px solid var(--bd);background:var(--s2)}
+.tbl td{padding:10px 13px;border-bottom:1px solid var(--bd);font-size:12px;color:var(--t1);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:var(--s2)}
+.avatar{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#000;flex-shrink:0}
+.name-cell{display:flex;align-items:center;gap:8px;font-weight:600}
+.mini-bar-bg{height:3px;background:var(--s3);border-radius:2px;margin-top:3px;min-width:50px}
+.mini-bar-fill{height:100%;border-radius:2px}
+.num-good{color:var(--green);font-weight:700}
+.num-warn{color:var(--amber);font-weight:700}
+.num-bad{color:var(--red);font-weight:700}
+
+/* ─ FUNNEL ─ */
+.funnel{display:flex;flex-direction:column;gap:5px}
+.funnel-row{display:flex;align-items:center;gap:8px}
+.funnel-lbl{font-size:11px;color:var(--t2);min-width:105px;text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.funnel-bar-bg{flex:1;height:20px;background:var(--s2);border-radius:3px;overflow:hidden}
+.funnel-bar-fill{height:100%;background:linear-gradient(90deg,var(--green),rgba(0,212,154,.5));border-radius:3px;display:flex;align-items:center;padding-left:6px;font-size:10px;font-weight:700;color:#000;min-width:24px;transition:width .6s ease}
+.funnel-n{font-size:11px;color:var(--t2);min-width:32px;text-align:right;font-family:var(--mono)}
+
+/* ─ PIPELINE TABLE ─ */
+.stage-pill{display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700}
+.days-pill{display:inline-block;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:700;font-family:var(--mono)}
+.days-ok{background:var(--green-d);color:var(--green)}
+.days-warn{background:var(--amber-d);color:var(--amber)}
+.days-bad{background:var(--red-d);color:var(--red)}
+.val-cell{font-family:var(--mono);font-weight:700;color:var(--green);font-size:12px}
+
+/* ─ INSIGHTS ─ */
+.insight-card{background:var(--s1);border:1px solid var(--bd);border-left:3px solid var(--purple);border-radius:var(--r);padding:1.1rem 1.25rem;margin-bottom:.75rem}
+.insight-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:.625rem}
+.insight-title{font-size:14px;font-weight:700;line-height:1.3}
+.insight-body{font-size:13px;color:var(--t2);line-height:1.7;margin-bottom:.75rem}
+.insight-action{background:var(--green-d);border:1px solid rgba(0,212,154,.2);border-radius:6px;padding:.625rem .875rem;font-size:13px;display:flex;gap:8px;align-items:flex-start}
+.ia-lbl{font-size:10px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.07em;font-family:var(--mono);flex-shrink:0;margin-top:1px}
+
+/* ─ DAILY GUIDE ─ */
+.daily-steps{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden}
+.daily-step{display:flex;gap:1rem;padding:1rem 1.25rem;border-bottom:1px solid var(--bd)}
+.daily-step:last-child{border-bottom:none}
+.step-num{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--bd2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--green);flex-shrink:0;font-family:var(--mono)}
+.step-time{font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:.06em;font-family:var(--mono);margin-bottom:2px}
+.step-title{font-size:13px;font-weight:700;margin-bottom:3px}
+.step-desc{font-size:12px;color:var(--t2);line-height:1.55}
+
+
+/* ─ PERSON DAILY ─ */
+.person-tabs{display:flex;gap:0;border-bottom:1px solid var(--bd);margin-bottom:1.25rem;overflow-x:auto;scrollbar-width:none}
+.person-tabs::-webkit-scrollbar{display:none}
+.ptab{padding:8px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--t3);font-size:12px;cursor:pointer;white-space:nowrap;transition:all .12s}
+.ptab:hover{color:var(--t2)}
+.ptab.active{color:var(--green);border-bottom-color:var(--green)}
+.person-view{display:none}
+.person-view.active{display:block}
+.daily-block{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:1rem 1.25rem;margin-bottom:.875rem}
+.daily-block-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--t3);margin-bottom:.75rem;display:flex;align-items:center;gap:6px}
+.meta-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--bd);font-size:13px}
+.meta-row:last-child{border-bottom:none}
+.meta-label{color:var(--t2)}
+.meta-val{font-weight:700;color:var(--t1)}
+.meta-val.good{color:var(--green)}
+.meta-val.warn{color:var(--amber)}
+.meta-val.bad{color:var(--red)}
+.progress-meta{height:5px;background:var(--s3);border-radius:3px;margin-top:4px;overflow:hidden}
+.progress-meta-fill{height:100%;border-radius:3px;background:var(--green);transition:width .5s}
+.progress-meta-fill.warn{background:var(--amber)}
+.progress-meta-fill.bad{background:var(--red)}
+.ai-reading{background:var(--s2);border-left:3px solid var(--purple);border-radius:0 var(--r) var(--r) 0;padding:.875rem 1rem;font-size:13px;color:var(--t2);line-height:1.7;margin-top:.75rem}
+.ai-reading strong{color:var(--t1)}
+/* ─ HEATMAP ─ */
+.heat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.625rem;margin-bottom:1.25rem}
+.heat-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:.875rem 1rem;position:relative;overflow:hidden}
+.heat-card::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%}
+.heat-mq::before{background:#ff3a3a;box-shadow:0 0 8px #ff3a3a}
+.heat-q::before{background:#f0a020}
+.heat-m::before{background:#4888f0}
+.heat-f::before{background:var(--t3)}
+.heat-temp{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
+.heat-mq .heat-temp{color:#ff3a3a}
+.heat-q .heat-temp{color:var(--amber)}
+.heat-m .heat-temp{color:var(--blue)}
+.heat-f .heat-temp{color:var(--t3)}
+.heat-name{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.heat-meta{font-size:11px;color:var(--t2)}
+.heat-action{font-size:11px;color:var(--green);margin-top:4px;font-weight:600}
+/* ─ FORECAST QUAL ─ */
+.fc-bu{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:1.1rem 1.25rem;margin-bottom:.875rem}
+.fc-bu-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.875rem}
+.fc-bu-name{font-size:13px;font-weight:700;color:var(--t1)}
+.fc-qual-badge{font-size:10px;font-weight:700;padding:2px 8px;border-radius:4px;text-transform:uppercase;letter-spacing:.05em}
+.fq-forte{background:rgba(0,212,154,.15);color:var(--green)}
+.fq-moderado{background:var(--amber-d);color:var(--amber)}
+.fq-fragil{background:var(--red-d);color:var(--red)}
+.fc-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:.75rem}
+.fc-stat{background:var(--s2);border-radius:6px;padding:.625rem .75rem;text-align:center}
+.fc-stat-n{font-size:1.3rem;font-weight:900;letter-spacing:-.03em;line-height:1}
+.fc-stat-l{font-size:10px;color:var(--t3);text-transform:uppercase;letter-spacing:.06em;margin-top:3px}
+.fc-reading{font-size:12px;color:var(--t2);line-height:1.65;border-top:1px solid var(--bd);padding-top:.75rem;margin-top:.25rem}
+/* ─ DECLINED ─ */
+.declined-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:.875rem 1rem;margin-bottom:.5rem;display:flex;gap:.875rem;align-items:flex-start}
+.dc-reativ{border-left:3px solid var(--green)}
+.dc-frio{border-left:3px solid var(--t3)}
+.dc-body{flex:1;min-width:0}
+.dc-name{font-size:13px;font-weight:600;color:var(--t1);margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dc-meta{font-size:11px;color:var(--t2);margin-bottom:4px}
+.dc-reason{font-size:11px;color:var(--t3)}
+.dc-score{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;text-transform:uppercase;white-space:nowrap;flex-shrink:0}
+.dc-alto{background:rgba(0,212,154,.15);color:var(--green)}
+.dc-medio{background:var(--amber-d);color:var(--amber)}
+.dc-baixo{background:var(--s3);color:var(--t3)}
+/* ─ META MENSAL ─ */
+.meta-cfg{display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap;margin-bottom:1.25rem}
+.meta-cfg .field{margin:0;flex:1;min-width:120px}
+.meta-cfg .field label{font-size:10px}
+.meta-cfg input{padding:7px 10px;font-size:13px}
+
+/* ─ DEPLOY GUIDE ─ */
+.deploy-section{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:1.25rem 1.5rem;margin-bottom:1rem}
+.deploy-section h3{font-size:14px;font-weight:700;margin-bottom:.875rem;display:flex;align-items:center;gap:6px}
+.deploy-section ol{padding-left:1.25rem;color:var(--t2);font-size:13px;line-height:2.1}
+.deploy-section li strong{color:var(--t1)}
+.code-block{background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:.875rem 1rem;font-family:var(--mono);font-size:12px;color:var(--green);margin:.5rem 0;overflow-x:auto;line-height:1.8}
+.code-block .cm{color:var(--t3)}
+.copy-btn{display:inline-flex;align-items:center;gap:5px;background:var(--s3);border:1px solid var(--bd2);border-radius:5px;padding:3px 10px;font-size:11px;color:var(--t2);cursor:pointer;transition:all .12s;font-family:var(--mono)}
+.copy-btn:hover{border-color:var(--green);color:var(--green)}
+.warning-box{background:var(--amber-d);border:1px solid rgba(240,160,32,.25);border-radius:6px;padding:.75rem 1rem;font-size:13px;color:var(--amber);margin:.75rem 0}
+.success-box{background:var(--green-d);border:1px solid rgba(0,212,154,.25);border-radius:6px;padding:.75rem 1rem;font-size:13px;color:var(--green);margin:.75rem 0}
+
+/* ─ CONFIG ─ */
+.cfg-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:1.25rem 1.5rem;margin-bottom:1rem}
+.cfg-card h3{font-size:13px;font-weight:700;margin-bottom:1rem}
+.cfg-grid{display:grid;grid-template-columns:1fr 1fr;gap:.875rem}
+.btn-save{background:var(--green);color:#000;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;transition:opacity .15s}
+.btn-save:hover{opacity:.85}
+
+/* ─ WHATSAPP PANEL ─ */
+.wa-card{background:var(--s1);border:1px solid var(--bd);border-radius:var(--r);padding:1.25rem 1.5rem;margin-bottom:1rem}
+.wa-card h3{font-size:13px;font-weight:700;margin-bottom:.5rem;display:flex;align-items:center;gap:6px}
+.wa-card>p{font-size:12px;color:var(--t2);margin-bottom:1rem;line-height:1.6}
+.wa-numbers{display:flex;flex-direction:column;gap:.5rem;margin-bottom:1rem}
+.wa-num-row{display:flex;gap:.5rem;align-items:center}
+.wa-num-row input{flex:1;background:var(--s2);border:1px solid var(--bd2);border-radius:6px;padding:8px 10px;color:var(--t1);font-size:13px;outline:none;font-family:var(--mono)}
+.wa-num-row input:focus{border-color:var(--green)}
+.wa-remove{background:none;border:none;color:var(--t3);cursor:pointer;font-size:16px;padding:4px;transition:color .12s}
+.wa-remove:hover{color:var(--red)}
+.wa-add-btn{background:none;border:1px dashed var(--bd2);border-radius:6px;padding:7px 12px;font-size:12px;color:var(--t2);cursor:pointer;transition:all .12s;width:100%}
+.wa-add-btn:hover{border-color:var(--green);color:var(--green)}
+.wa-test-btn{background:none;border:1px solid rgba(0,212,154,.4);border-radius:6px;padding:7px 14px;font-size:12px;color:var(--green);cursor:pointer;transition:all .12s;font-weight:600}
+.wa-test-btn:hover{background:var(--green-d)}
+
+/* ─ LOADING ─ */
+.loading-overlay{position:fixed;inset:0;background:rgba(12,12,14,.93);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:1000;gap:.875rem}
+.loading-overlay.hide{display:none}
+.spinner{width:34px;height:34px;border:2.5px solid var(--s3);border-top-color:var(--green);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-txt{color:var(--t2);font-size:13px}
+.load-steps{font-size:11px;color:var(--t3);font-family:var(--mono);text-align:center;line-height:2;max-width:400px;max-height:120px;overflow-y:auto}
+
+/* ─ TOAST ─ */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--s2);border:1px solid var(--bd2);border-radius:var(--r);padding:.75rem 1.1rem;font-size:13px;z-index:200;opacity:0;transform:translateY(8px);transition:all .2s;max-width:340px;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.ok{border-left:3px solid var(--green)}
+.toast.err{border-left:3px solid var(--red)}
+
+/* ─ EMPTY ─ */
+.empty{text-align:center;padding:2.5rem;color:var(--t3)}
+.empty div{font-size:2rem;margin-bottom:.5rem}
+.empty p{font-size:13px}
+
+/* ─ RESPONSIVE ─ */
+@media(max-width:800px){
+  .chart-grid{grid-template-columns:1fr}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .field-grid{grid-template-columns:1fr}
+  .cfg-grid{grid-template-columns:1fr}
+}
+</style>
+
+<script id="injected-cfg">window.__INJECTED_CFG={"url":"https://holding.bitrix24.com.br","token":"8/qkji001z3n51argh","claudeKey":"","slaHours":1,"wa":{"type":"none"}};</script>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════
+     ONBOARDING / SETUP
+═══════════════════════════════════ -->
+<div class="screen" id="s-onboard">
+<div class="ob-wrap">
+
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:2rem">
+    <div style="width:36px;height:36px;background:var(--green);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px">📊</div>
+    <div style="font-size:20px;font-weight:800;letter-spacing:-.03em">Sales<span style="color:var(--green)">Intel</span></div>
+  </div>
+
+  <div class="ob-steps">
+    <div class="ob-step-btn done" id="ostep-1"><div class="ob-step-num">1</div> Gerar Token Bitrix24</div>
+    <div class="ob-step-btn active" id="ostep-2"><div class="ob-step-num">2</div> Conectar e Testar</div>
+    <div class="ob-step-btn" id="ostep-3"><div class="ob-step-num">3</div> Alertas WhatsApp</div>
+    <div class="ob-step-btn" id="ostep-4"><div class="ob-step-num">4</div> Publicar Online</div>
+  </div>
+
+  <div class="ob-card">
+
+    <!-- STEP 1 - Token -->
+    <div class="ob-step-content" id="ob-1">
+      <h2>Passo 1 — Criar o Webhook no Bitrix24</h2>
+      <p>O Webhook é uma chave de acesso que permite ler os dados do CRM sem expor sua senha. Siga o passo a passo abaixo.</p>
+
+      <div class="guide-box">
+        <h4>📍 Como gerar o Webhook Token</h4>
+        <ol>
+          <li>Acesse seu Bitrix24 como <strong>administrador</strong></li>
+          <li>No menu lateral, clique em <strong>Aplicativos</strong> (ou Marketplace)</li>
+          <li>Clique em <strong>Webhooks</strong> → <strong>Adicionar webhook de entrada</strong></li>
+          <li>Em "Permissões", marque: <strong>CRM (crm)</strong> — somente leitura já é suficiente</li>
+          <li>Clique em <strong>Salvar</strong></li>
+          <li>Copie a URL gerada. Ela terá o formato:<br>
+            <code style="background:var(--s3);padding:2px 6px;border-radius:4px;font-size:12px">https://suaempresa.bitrix24.com.br/rest/<strong>1/abc123xyz.../</strong></code>
+          </li>
+          <li>A URL do seu Bitrix24 é a parte antes de <code>/rest/</code><br>
+              O Token é a parte após o número do usuário (ex: <code>abc123xyz...</code>)
+          </li>
+        </ol>
+        <div class="screenshot-hint">
+          💡 Caminho alternativo: Configurações → Integrações → REST API → Adicionar webhook
+        </div>
+      </div>
+
+      <div class="guide-box">
+        <h4>🔒 É seguro?</h4>
+        <ul>
+          <li>O token dá acesso <strong>somente leitura</strong> ao CRM</li>
+          <li>Ele não é sua senha — você pode revogar a qualquer momento</li>
+          <li>Este sistema <strong>nunca envia seus dados para terceiros</strong></li>
+          <li>Tudo roda no seu próprio computador ou servidor</li>
+        </ul>
+      </div>
+
+      <div class="ob-actions">
+        <button class="btn btn-outline" onclick="startDemo()">Usar dados de demonstração</button>
+        <button class="btn btn-green" onclick="goStep(2)">Já tenho o token →</button>
+      </div>
+    </div>
+
+    <!-- STEP 2 - Connect -->
+    <div class="ob-step-content active" id="ob-2">
+      <h2>Passo 2 — Conectar ao Bitrix24</h2>
+      <p>Informe os dados de acesso. O sistema vai testar a conexão e carregar os dados do seu CRM.</p>
+
+      <div class="field">
+        <label>URL do seu Bitrix24</label>
+        <input type="text" id="inp-url" placeholder="https://suaempresa.bitrix24.com.br">
+        <div class="field-hint">Endereço completo, sem barra no final e sem o /rest/</div>
+      </div>
+
+      <div class="field">
+        <label>Webhook Token</label>
+        <input type="text" id="inp-token" placeholder="abc123xyz..." autocomplete="off">
+        <div class="field-hint">O código que aparece após o número do usuário na URL do webhook</div>
+      </div>
+
+      <div class="field-grid">
+        <div class="field">
+          <label>SLA de primeiro contato (horas)</label>
+          <input type="number" id="inp-sla" value="4" min="1" max="72">
+          <div class="field-hint">Padrão: 4h. O alerta dispara se um lead não foi contatado dentro desse prazo.</div>
+        </div>
+        <div class="field">
+          <label>Claude API Key (opcional — para análise IA)</label>
+          <input type="password" id="inp-claude" placeholder="sk-ant-..." autocomplete="off">
+          <div class="field-hint"><a href="https://console.anthropic.com" target="_blank">console.anthropic.com</a> → API Keys → Create Key</div>
+        </div>
+      </div>
+
+      <button class="btn btn-outline" onclick="testConnection()" id="btn-test">🔌 Testar conexão</button>
+      <div class="test-result ok" id="test-result" style="display: block;">✅ Conexão bem-sucedida! Bitrix24 respondeu corretamente.</div>
+
+      <div class="ob-actions">
+        <button class="btn btn-outline" onclick="goStep(1)">← Voltar</button>
+        <button class="btn btn-green" onclick="connectAndLoad()" id="btn-connect">Conectar e carregar dados →</button>
+      </div>
+    </div>
+
+    <!-- STEP 3 - WhatsApp -->
+    <div class="ob-step-content" id="ob-3">
+      <h2>Passo 3 — Alertas no WhatsApp (opcional)</h2>
+      <p>Configure números para receber alertas críticos diretamente no WhatsApp. Usa a API do WhatsApp via Evolution API ou CallMeBot (gratuito).</p>
+
+      <div class="guide-box">
+        <h4>📱 Opção A — CallMeBot (gratuito, mais simples)</h4>
+        <ol>
+          <li>Abra o WhatsApp e envie uma mensagem para <strong>+34 644 59 97 39</strong></li>
+          <li>Mensagem: <code style="background:var(--s3);padding:2px 6px;border-radius:4px">I allow callmebot to send me messages</code></li>
+          <li>Aguarde a resposta com seu <strong>API Key</strong></li>
+          <li>Cole o número e a key abaixo</li>
+        </ol>
+      </div>
+
+      <div class="guide-box">
+        <h4>🏢 Opção B — Evolution API (recomendado para times)</h4>
+        <ol>
+          <li>Você já tem o "Agente Guardinha" configurado com Evolution API</li>
+          <li>Use a mesma URL base e token configurados lá</li>
+          <li>Cole o endpoint completo abaixo</li>
+        </ol>
+      </div>
+
+      <div class="field">
+        <label>Tipo de integração WhatsApp</label>
+        <select id="wa-type" onchange="toggleWaConfig()">
+          <option value="none">Não usar alertas WhatsApp agora</option>
+          <option value="callmebot">CallMeBot (gratuito)</option>
+          <option value="evolution">Evolution API</option>
+        </select>
+      </div>
+
+      <div id="wa-callmebot-config" style="display:none">
+        <div class="field-grid">
+          <div class="field">
+            <label>Seu número (com DDI)</label>
+            <input type="text" id="wa-phone" placeholder="+5511999999999">
+          </div>
+          <div class="field">
+            <label>CallMeBot API Key</label>
+            <input type="text" id="wa-cbkey" placeholder="123456">
+          </div>
+        </div>
+      </div>
+
+      <div id="wa-evolution-config" style="display:none">
+        <div class="field">
+          <label>Evolution API URL</label>
+          <input type="text" id="wa-evo-url" placeholder="https://sua-evolution-api.com">
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Instance Name</label>
+            <input type="text" id="wa-evo-inst" placeholder="saygo">
+          </div>
+          <div class="field">
+            <label>API Key</label>
+            <input type="text" id="wa-evo-key" placeholder="sua-key">
+          </div>
+        </div>
+        <div class="field">
+          <label>Números para alertas (um por linha, com DDI)</label>
+          <textarea id="wa-evo-nums" rows="3" style="width:100%;background:var(--s2);border:1px solid var(--bd2);border-radius:6px;padding:8px 10px;color:var(--t1);font-size:13px;outline:none;font-family:var(--mono);resize:vertical" placeholder="+5511999999999
++5521888888888"></textarea>
+        </div>
+      </div>
+
+      <div class="ob-actions">
+        <button class="btn btn-outline" onclick="goStep(2)">← Voltar</button>
+        <button class="btn btn-green" onclick="goStep(4)">Próximo →</button>
+      </div>
+    </div>
+
+    <!-- STEP 4 - Deploy -->
+    <div class="ob-step-content" id="ob-4">
+      <h2>Passo 4 — Publicar Online (link para o time)</h2>
+      <p>Para que todo o time acesse o dashboard pelo navegador, você precisa hospedar este arquivo online. Veja as opções abaixo — todas gratuitas.</p>
+
+      <div class="guide-box">
+        <h4>🚀 Opção A — Netlify Drop (mais fácil, 2 minutos)</h4>
+        <ol>
+          <li>Acesse <strong>app.netlify.com/drop</strong></li>
+          <li>Arraste e solte este arquivo HTML na página</li>
+          <li>Em segundos você recebe um link como <code style="background:var(--s3);padding:2px 6px;border-radius:4px">https://amazing-biscuit-123.netlify.app</code></li>
+          <li>Compartilhe o link com o time</li>
+          <li>Para atualizar: salve as configurações (botão abaixo) e faça o drop novamente</li>
+        </ol>
+        <div class="screenshot-hint">⚠️ Atenção: o Netlify Drop é público. Qualquer pessoa com o link pode acessar. Para proteger com senha, use a opção B.</div>
+      </div>
+
+      <div class="guide-box">
+        <h4>☁️ Opção B — Vercel (com proteção por senha)</h4>
+        <ol>
+          <li>Instale o Node.js em <strong>nodejs.org</strong></li>
+          <li>Abra o terminal (cmd no Windows) e execute:
+            <div class="code-block"><span class="cm"># Instalar Vercel CLI</span>
+npm install -g vercel
+
+<span class="cm"># Fazer deploy deste arquivo</span>
+vercel sales_intel_completo.html --name sales-intel</div>
+          </li>
+          <li>Faça login com GitHub quando solicitado</li>
+          <li>Você receberá um link <code style="background:var(--s3);padding:2px 6px;border-radius:4px">https://sales-intel.vercel.app</code></li>
+        </ol>
+      </div>
+
+      <div class="guide-box">
+        <h4>💻 Opção C — Rodar local (sem internet necessária)</h4>
+        <ol>
+          <li>Salve este arquivo em qualquer pasta</li>
+          <li>Abra com o Chrome ou Edge</li>
+          <li>O sistema funciona 100% offline — os dados vêm do seu Bitrix24 diretamente</li>
+          <li>Para o time acessar na mesma rede Wi-Fi, use o Python:
+            <div class="code-block">python -m http.server 8080</div>
+            Acesse: <code style="background:var(--s3);padding:2px 6px;border-radius:4px">http://[SEU-IP]:8080/sales_intel_completo.html</code>
+          </li>
+        </ol>
+      </div>
+
+      <div class="success-box">
+        ✅ Suas configurações serão salvas <strong>dentro deste arquivo HTML</strong> quando você clicar em "Salvar e Entrar". Faça o deploy depois de clicar em salvar para que o link já venha configurado.
+      </div>
+
+      <div class="ob-actions">
+        <button class="btn btn-outline" onclick="goStep(3)">← Voltar</button>
+        <button class="btn btn-green" onclick="saveAndEnter()">💾 Salvar configurações e entrar →</button>
+      </div>
+    </div>
+
+  </div><!-- /ob-card -->
+</div><!-- /ob-wrap -->
+</div><!-- /onboard -->
+
+<!-- ═══════════════════════════════════
+     MAIN APP
+═══════════════════════════════════ -->
+<div class="screen" id="s-app">
+
+  <div class="topbar">
+    <div class="topbar-logo">Sales<span>Intel</span></div>
+    <nav class="topbar-nav">
+      <button class="nav-btn active" data-view="daily" onclick="showView('daily')">📋 Daily Geral</button>
+      <button class="nav-btn" data-view="daily-pessoa" onclick="showView('daily-pessoa')">👤 Daily por Pessoa</button>
+      <button class="nav-btn" data-view="heatmap" onclick="showView('heatmap')">🔥 Mapa de Calor</button>
+      <button class="nav-btn" data-view="forecast" onclick="showView('forecast')">📈 Forecast</button>
+      <button class="nav-btn" data-view="declinados" onclick="showView('declinados')">♻️ Declinados</button>
+      <button class="nav-btn" data-view="pipeline" onclick="showView('pipeline')">🔀 Pipeline</button>
+      <button class="nav-btn" data-view="alertas" onclick="showView('alertas')">🔔 Alertas<span id="alert-badge" style="background: var(--red); color: rgb(255, 255, 255); border-radius: 9px; padding: 1px 5px; font-size: 10px; font-weight: 700; margin-left: 4px; display: inline;">3</span></button>
+      <button class="nav-btn" data-view="ia" onclick="showView('ia')">🤖 IA + Daily</button>
+      <button class="nav-btn" data-view="deploy" onclick="showView('deploy')">📦 Deploy/Setup</button>
+      <button class="nav-btn" data-view="config" onclick="showView('config')">⚙️ Config</button>
+    </nav>
+    <div class="topbar-right">
+      <span class="last-sync" id="last-sync">09:00:53</span>
+      <button class="sync-btn" onclick="syncNow()"><div class="sync-dot" id="sync-dot"></div>Sincronizar</button>
+    </div>
+  </div>
+
+  <div class="app-content">
+
+    <!-- ── DAILY ── -->
+    <div class="view" id="view-daily">
+      <div class="kpi-grid" id="kpi-daily">
+    <div class="kpi kpi-g">
+      <div class="kpi-label">Pipeline Total</div>
+      <div class="kpi-val">R$287K</div>
+      <div class="kpi-sub">8 deals</div>
+    </div>
+    <div class="kpi kpi-b">
+      <div class="kpi-label">Forecast Mês</div>
+      <div class="kpi-val">R$0</div>
+      <div class="kpi-sub">0 fechando</div>
+    </div>
+    <div class="kpi kpi-g">
+      <div class="kpi-label">Win Rate 30d</div>
+      <div class="kpi-val">60%</div>
+      <div class="kpi-sub">3G/2P</div>
+    </div>
+    <div class="kpi kpi-p">
+      <div class="kpi-label">Ticket Médio</div>
+      <div class="kpi-val">R$45K</div>
+      <div class="kpi-sub">nos ganhos</div>
+    </div>
+    <div class="kpi kpi-a">
+      <div class="kpi-label">Sem FUP</div>
+      <div class="kpi-val">2</div>
+      <div class="kpi-sub">deals sem ação</div>
+    </div>
+    <div class="kpi kpi-r">
+      <div class="kpi-label">SLA Violado</div>
+      <div class="kpi-val">5</div>
+      <div class="kpi-sub">leads&gt;1h</div>
+    </div>
+    <div class="kpi kpi-g">
+      <div class="kpi-label">Parados</div>
+      <div class="kpi-val">3</div>
+      <div class="kpi-sub">acima do tempo médio</div>
+    </div>
+    <div class="kpi kpi-b">
+      <div class="kpi-label">Atividades Hoje</div>
+      <div class="kpi-val">12</div>
+      <div class="kpi-sub">0 vencidas</div>
+    </div></div>
+      <div class="sec-header">
+        <div class="sec-title">🚨 Alertas Críticos <span class="badge-count" id="crit-count">3</span></div>
+      </div>
+      <div class="alert-list" id="alerts-daily"> <div class="alert-item">
+      <div class="alert-dot dot-critical"></div>
+      <div class="alert-body">
+        <div class="alert-title-txt">5 lead(s) sem nenhuma tentativa de contato</div>
+        <div class="alert-desc-txt">Lead — Distribuidora Alfa, Lead — Importadora Beta, Lead — Tradings Gama +2</div>
+        <div class="alert-action-txt">→ Acionar imediatamente. Primeiros 5 minutos = 21× mais chance de conversão.</div>
+      </div>
+      <span class="badge badge-critical">CRÍTICO</span>
+    </div> <div class="alert-item">
+      <div class="alert-dot dot-critical"></div>
+      <div class="alert-body">
+        <div class="alert-title-txt">5 lead(s) fora do SLA de 1h sem primeiro contato</div>
+        <div class="alert-desc-txt">Leads sem contato após 1h do cadastro.</div>
+        <div class="alert-action-txt">→ Cobrar responsável ou redistribuir agora.</div>
+      </div>
+      <span class="badge badge-critical">CRÍTICO</span>
+    </div> <div class="alert-item">
+      <div class="alert-dot dot-critical"></div>
+      <div class="alert-body">
+        <div class="alert-title-txt">3 deal(s) com closedate em ≤7 dias sem atividade recente</div>
+        <div class="alert-desc-txt">Empresa ABC — Regime Especial AL (R$45K) · Tech Solutions — Habilitação Radar Pro (R$28K)</div>
+        <div class="alert-action-txt">→ Contato urgente hoje. Risco alto de perda de timing.</div>
+      </div>
+      <span class="badge badge-critical">CRÍTICO</span>
+    </div></div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-title">Acionamentos por vendedor (hoje)</div>
+          <canvas id="ch-prod" height="1089" style="box-sizing: border-box; display: block; height: 1089px; width: 605px;" width="605"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Funil de conversão</div>
+          <div class="funnel" id="funnel-viz" style="padding:.25rem 0">
+    <div class="funnel-row">
+      <div class="funnel-lbl">Leads</div>
+      <div class="funnel-bar-bg"><div class="funnel-bar-fill" style="width:100%">100%</div></div>
+      <div class="funnel-n">5</div>
+    </div>
+    <div class="funnel-row">
+      <div class="funnel-lbl">Qualificação</div>
+      <div class="funnel-bar-bg"><div class="funnel-bar-fill" style="width:240%">240%</div></div>
+      <div class="funnel-n">12</div>
+    </div>
+    <div class="funnel-row">
+      <div class="funnel-lbl">Proposta</div>
+      <div class="funnel-bar-bg"><div class="funnel-bar-fill" style="width:200%">200%</div></div>
+      <div class="funnel-n">10</div>
+    </div>
+    <div class="funnel-row">
+      <div class="funnel-lbl">Negociação</div>
+      <div class="funnel-bar-bg"><div class="funnel-bar-fill" style="width:160%">160%</div></div>
+      <div class="funnel-n">8</div>
+    </div>
+    <div class="funnel-row">
+      <div class="funnel-lbl">Ganhos</div>
+      <div class="funnel-bar-bg"><div class="funnel-bar-fill" style="width:60%">60%</div></div>
+      <div class="funnel-n">3</div>
+    </div></div>
+        </div>
+      </div>
+      <div class="sec-header"><div class="sec-title">👥 Produtividade do Time</div></div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Vendedor</th><th>Acion. hoje</th><th>Ligações(VoIP)</th><th>Contatos(WA)</th><th>Reuniões</th><th>FUPs ontem</th><th>Deals Ativos</th><th>Sem FUP</th></tr></thead>
+          <tbody id="prod-tbody"><tr>
+      <td><div class="name-cell"><div class="avatar" style="background:#00d49a">LA</div>Lidia Ariane</div></td>
+      <td><div>2</div><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:33%;background:#f0a020"></div></div></td>
+      <td>2</td><td>0</td><td>0</td><td>3</td>
+      <td class="">0</td>
+      <td class="num-bad">2</td>
+    </tr><tr>
+      <td><div class="name-cell"><div class="avatar" style="background:#4888f0">GO</div>Gabriela Oliveira</div></td>
+      <td><div>2</div><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:33%;background:#f0a020"></div></div></td>
+      <td>1</td><td>1</td><td>0</td><td>2</td>
+      <td class="">1</td>
+      <td class="num-bad">1</td>
+    </tr><tr>
+      <td><div class="name-cell"><div class="avatar" style="background:#9860f0">VL</div>Victor Langenbach</div></td>
+      <td><div>6</div><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:100%;background:#00d49a"></div></div></td>
+      <td>4</td><td>0</td><td>0</td><td>1</td>
+      <td class="">1</td>
+      <td class="num-bad">1</td>
+    </tr><tr>
+      <td><div class="name-cell"><div class="avatar" style="background:#f0a020">CS</div>Carlos Silva</div></td>
+      <td><div>2</div><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:33%;background:#f0a020"></div></div></td>
+      <td>1</td><td>0</td><td>1</td><td>2</td>
+      <td class="">0</td>
+      <td class="num-bad">1</td>
+    </tr></tbody>
+        </table>
+      </div>
+      <div class="chart-grid">
+        <div class="chart-card">
+          <div class="chart-title">Pipeline por etapa (R$)</div>
+          <canvas id="ch-stages" height="961" style="box-sizing: border-box; display: block; height: 961px; width: 605px;" width="605"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Win Rate — últimos 30 dias</div>
+          <canvas id="ch-win" height="961" style="box-sizing: border-box; display: block; height: 961px; width: 605px;" width="605"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── PIPELINE ── -->
+    <div class="view" id="view-pipeline">
+      <div class="kpi-grid" id="kpi-pipe">
+    <div class="kpi kpi-g">
+      <div class="kpi-label">Pipeline Total</div>
+      <div class="kpi-val">R$287K</div>
+      <div class="kpi-sub">8 deals</div>
+    </div>
+    <div class="kpi kpi-b">
+      <div class="kpi-label">Forecast</div>
+      <div class="kpi-val">R$0</div>
+      <div class="kpi-sub">fecha este mês</div>
+    </div>
+    <div class="kpi kpi-a">
+      <div class="kpi-label">Sem FUP</div>
+      <div class="kpi-val">2</div>
+      <div class="kpi-sub">deals sem ação</div>
+    </div>
+    <div class="kpi kpi-a">
+      <div class="kpi-label">Parados</div>
+      <div class="kpi-val">3</div>
+      <div class="kpi-sub">na mesma etapa</div>
+    </div></div>
+      <div class="sec-header"><div class="sec-title">📂 Deals em Aberto — Ordenados por Risco</div></div>
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Deal</th><th>Etapa</th><th>Responsável</th><th>Valor</th><th>Dias na Etapa</th><th>Última Atividade</th><th>FUP Programado</th><th>Risco</th></tr></thead>
+          <tbody id="pipe-tbody"><tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Comércio Norte — Vision B2B"><strong style="font-size:13px">Comércio Norte — Vision B2B</strong></td>
+      <td><span class="stage-pill" style="background:#9860f022;color:#9860f0;border:1px solid #9860f044;font-size:10px;font-weight:700">Proposta Enviada</span></td>
+      <td style="font-size:12px;color:var(--t2)">Victor Langenbach</td>
+      <td><span class="val-cell">R$18K</span></td>
+      <td><span class="days-pill days-bad">22d</span></td>
+      <td style="font-size:12px;color:var(--red)">14d atrás</td>
+      <td><span style="color:var(--red);font-size:11px;font-weight:700">⚠ Sem FUP</span></td>
+      <td style="font-size:12px">🔴 Alto</td>
+    </tr><tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Exporta Fácil — Regime AL Premium"><strong style="font-size:13px">Exporta Fácil — Regime AL Premium</strong></td>
+      <td><span class="stage-pill" style="background:#00d49a22;color:#00d49a;border:1px solid #00d49a44;font-size:10px;font-weight:700">Novo</span></td>
+      <td style="font-size:12px;color:var(--t2)">Gabriela Oliveira</td>
+      <td><span class="val-cell">R$22K</span></td>
+      <td><span class="days-pill days-ok">5d</span></td>
+      <td style="font-size:12px;color:var(--t2)">—</td>
+      <td><span style="color:var(--red);font-size:11px;font-weight:700">⚠ Sem FUP</span></td>
+      <td style="font-size:12px">🟡 Médio</td>
+    </tr><tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Empresa ABC — Regime Especial AL"><strong style="font-size:13px">Empresa ABC — Regime Especial AL</strong></td>
+      <td><span class="stage-pill" style="background:#9860f022;color:#9860f0;border:1px solid #9860f044;font-size:10px;font-weight:700">Proposta Enviada</span></td>
+      <td style="font-size:12px;color:var(--t2)">Lidia Ariane</td>
+      <td><span class="val-cell">R$45K</span></td>
+      <td><span class="days-pill days-bad">18d</span></td>
+      <td style="font-size:12px;color:var(--red)">8d atrás</td>
+      <td><span style="color:var(--green);font-size:11px;font-weight:600">✅ 05/04</span></td>
+      <td style="font-size:12px">🟡 Médio</td>
+    </tr><tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Industrias Sul — Câmbio Corp."><strong style="font-size:13px">Industrias Sul — Câmbio Corp.</strong></td>
+      <td><span class="stage-pill" style="background:#f0a02022;color:#f0a020;border:1px solid #f0a02044;font-size:10px;font-weight:700">Negociação</span></td>
+      <td style="font-size:12px;color:var(--t2)">Carlos Silva</td>
+      <td><span class="val-cell">R$67K</span></td>
+      <td><span class="days-pill days-warn">12d</span></td>
+      <td style="font-size:12px;color:var(--t2)">1d atrás</td>
+      <td><span style="color:var(--green);font-size:11px;font-weight:600">✅ 07/04</span></td>
+      <td style="font-size:12px">🟡 Médio</td>
+    </tr><tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Tech Solutions — Habilitação Radar Pro"><strong style="font-size:13px">Tech Solutions — Habilitação Radar Pro</strong></td>
+      <td><span class="stage-pill" style="background:#f0a02022;color:#f0a020;border:1px solid #f0a02044;font-size:10px;font-weight:700">Negociação</span></td>
+      <td style="font-size:12px;color:var(--t2)">Gabriela Oliveira</td>
+      <td><span class="val-cell">R$28K</span></td>
+      <td><span class="days-pill days-ok">6d</span></td>
+      <td style="font-size:12px;color:var(--t2)">2d atrás</td>
+      <td><span style="color:var(--green);font-size:11px;font-weight:600">✅ 04/04</span></td>
+      <td style="font-size:12px">🟢 Baixo</td>
+    </tr><tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="Global Imports — Radar Expresso"><strong style="font-size:13px">Global Imports — Radar Expresso</strong></td>
+      <td><span class="stage-pill" style="background:#4888f022;color:#4888f0;border:1px solid #4888f044;font-size:10px;font-weight:700">Qualificação</span></td>
+      <td style="font-size:12px;color:var(--t2)">Lidia Ariane</td>
+      <td><span class="val-cell">R$12K</span></td>
+      <td><span class="days-pill days-warn">10d</span></td>
+      <td style="font-size:12px;color:var(--t2)">3d atrás</td>
+      <td><span style="color:var(--green);font-size:11px;font-weight:600">✅ 03/04</span></td>
+      <td style="font-size:12px">🟡 Médio</td>
+    </tr><tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="LogiTrade — Habilitação Radar"><strong style="font-size:13px">LogiTrade — Habilitação Radar</strong></td>
+      <td><span class="stage-pill" style="background:#4888f022;color:#4888f0;border:1px solid #4888f044;font-size:10px;font-weight:700">Qualificação</span></td>
+      <td style="font-size:12px;color:var(--t2)">Carlos Silva</td>
+      <td><span class="val-cell">R$10K</span></td>
+      <td><span class="days-pill days-warn">8d</span></td>
+      <td style="font-size:12px;color:var(--t2)">—</td>
+      <td><span style="color:var(--green);font-size:11px;font-weight:600">✅ 03/04</span></td>
+      <td style="font-size:12px">🟡 Médio</td>
+    </tr><tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="DataCorp — Vision Enterprise"><strong style="font-size:13px">DataCorp — Vision Enterprise</strong></td>
+      <td><span class="stage-pill" style="background:#f0484822;color:#f04848;border:1px solid #f0484844;font-size:10px;font-weight:700">Fechamento</span></td>
+      <td style="font-size:12px;color:var(--t2)">Lidia Ariane</td>
+      <td><span class="val-cell">R$85K</span></td>
+      <td><span class="days-pill days-warn">9d</span></td>
+      <td style="font-size:12px;color:var(--t2)">4d atrás</td>
+      <td><span style="color:var(--green);font-size:11px;font-weight:600">✅ 04/04</span></td>
+      <td style="font-size:12px">🟡 Médio</td>
+    </tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── ALERTAS ── -->
+    <div class="view" id="view-alertas">
+      <div class="sec-header">
+        <div class="sec-title">🔔 Central de Alertas</div>
+        <button class="btn btn-outline" onclick="sendAllAlerts()" id="btn-wa-send" style="display:none">📲 Enviar alertas WhatsApp</button>
+      </div>
+      <div class="alert-list" id="alerts-full"> <div class="alert-item">
+      <div class="alert-dot dot-critical"></div>
+      <div class="alert-body">
+        <div class="alert-title-txt">5 lead(s) sem nenhuma tentativa de contato</div>
+        <div class="alert-desc-txt">Lead — Distribuidora Alfa, Lead — Importadora Beta, Lead — Tradings Gama +2</div>
+        <div class="alert-action-txt">→ Acionar imediatamente. Primeiros 5 minutos = 21× mais chance de conversão.</div>
+      </div>
+      <span class="badge badge-critical">CRÍTICO</span>
+    </div> <div class="alert-item">
+      <div class="alert-dot dot-critical"></div>
+      <div class="alert-body">
+        <div class="alert-title-txt">5 lead(s) fora do SLA de 1h sem primeiro contato</div>
+        <div class="alert-desc-txt">Leads sem contato após 1h do cadastro.</div>
+        <div class="alert-action-txt">→ Cobrar responsável ou redistribuir agora.</div>
+      </div>
+      <span class="badge badge-critical">CRÍTICO</span>
+    </div> <div class="alert-item">
+      <div class="alert-dot dot-critical"></div>
+      <div class="alert-body">
+        <div class="alert-title-txt">3 deal(s) com closedate em ≤7 dias sem atividade recente</div>
+        <div class="alert-desc-txt">Empresa ABC — Regime Especial AL (R$45K) · Tech Solutions — Habilitação Radar Pro (R$28K)</div>
+        <div class="alert-action-txt">→ Contato urgente hoje. Risco alto de perda de timing.</div>
+      </div>
+      <span class="badge badge-critical">CRÍTICO</span>
+    </div> <div class="alert-item">
+      <div class="alert-dot dot-high"></div>
+      <div class="alert-body">
+        <div class="alert-title-txt">2 deal(s) sem follow-up agendado</div>
+        <div class="alert-desc-txt">Comércio Norte — Vision B2B, Exporta Fácil — Regime AL Premium</div>
+        <div class="alert-action-txt">→ Todo deal deve encerrar o dia com uma próxima ação agendada.</div>
+      </div>
+      <span class="badge badge-high">ALTO</span>
+    </div> <div class="alert-item">
+      <div class="alert-dot dot-high"></div>
+      <div class="alert-body">
+        <div class="alert-title-txt">3 deal(s) parado(s) acima do tempo médio na etapa</div>
+        <div class="alert-desc-txt">Empresa ABC — Regime Especial AL (18d), Comércio Norte — Vision B2B (22d), Industrias Sul — Câmbio Corp. (12d)</div>
+        <div class="alert-action-txt">→ Diagnóstico: avançar ou fechar como perdido.</div>
+      </div>
+      <span class="badge badge-high">ALTO</span>
+    </div></div>
+    </div>
+
+    <!-- ── IA + DAILY ── -->
+    <div class="view" id="view-ia">
+      <div class="sec-header">
+        <div class="sec-title">🤖 Análise por IA — Especialista Comercial B2B</div>
+        <button class="btn btn-green" onclick="runAI()" id="btn-ai">Gerar Análise</button>
+      </div>
+      <div id="ai-output">
+        <div class="empty"><div>🤖</div><p>Clique em "Gerar Análise" para que a IA leia os dados do seu CRM e entregue insights priorizados como um analista comercial B2B sênior.</p></div>
+      </div>
+
+      <div style="margin-top:2rem">
+        <div class="sec-header"><div class="sec-title">📋 Roteiro de Daily — Como usar este sistema</div></div>
+        <div class="daily-steps">
+          <div class="daily-step">
+            <div class="step-num">1</div>
+            <div>
+              <div class="step-time">0–3 min</div>
+              <div class="step-title">Briefing da IA</div>
+              <div class="step-desc">Leia o parágrafo de briefing gerado acima. Contextualiza o estado da operação sem precisar olhar número por número. Se o time não tem Claude API, leia os alertas críticos da aba Daily em voz alta.</div>
+            </div>
+          </div>
+          <div class="daily-step">
+            <div class="step-num">2</div>
+            <div>
+              <div class="step-time">3–8 min</div>
+              <div class="step-title">Alertas críticos</div>
+              <div class="step-desc">Aba "Daily" → seção Alertas Críticos. Para cada um: "Fulano, o deal X está sem atividade há N dias. Próximo passo?" — 30 segundos por resposta. Sem monólogos.</div>
+            </div>
+          </div>
+          <div class="daily-step">
+            <div class="step-num">3</div>
+            <div>
+              <div class="step-time">8–18 min</div>
+              <div class="step-title">Pipeline prioritário</div>
+              <div class="step-desc">Aba "Pipeline" — os deals vermelhos e laranjas no topo são os que precisam de ação hoje. Para cada um: probabilidade real de fechar? Próxima ação, quem faz, quando?</div>
+            </div>
+          </div>
+          <div class="daily-step">
+            <div class="step-num">4</div>
+            <div>
+              <div class="step-time">18–23 min</div>
+              <div class="step-title">Produtividade ontem</div>
+              <div class="step-desc">Tabela de produtividade: quem está abaixo de 50% da média? Não é julgamento — é diagnóstico. Bloqueio técnico, prospect difícil ou desorganização? O gestor anota e resolve em 1:1.</div>
+            </div>
+          </div>
+          <div class="daily-step">
+            <div class="step-num">5</div>
+            <div>
+              <div class="step-time">23–25 min</div>
+              <div class="step-title">Commit de ações</div>
+              <div class="step-desc">3–5 ações com dono e prazo. "Hoje 14h: Lidia contata deals X e Y. Amanhã 9h: Victor atualiza motivos de perda." Verificadas na daily seguinte — sem commit, sem cobrança.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DEPLOY GUIDE ── -->
+    <div class="view active" id="view-deploy">
+      <div class="deploy-section">
+        <h3>🚀 Como publicar online (link para o time)</h3>
+        <p style="font-size:13px;color:var(--t2);margin-bottom:1rem;line-height:1.6">Escolha a opção que faz mais sentido para você. Netlify Drop é a mais rápida.</p>
+
+        <h4 style="font-size:13px;margin:1rem 0 .5rem;color:var(--green)">Opção A — Netlify Drop (2 minutos, gratuito)</h4>
+        <ol style="padding-left:1.25rem;color:var(--t2);font-size:13px;line-height:2.2">
+          <li>Clique em <strong style="color:var(--t1)">"Baixar este arquivo configurado"</strong> abaixo</li>
+          <li>Acesse <a href="https://app.netlify.com/drop" target="_blank" style="color:var(--green)">app.netlify.com/drop</a></li>
+          <li>Arraste o arquivo HTML baixado para a área da página</li>
+          <li>Em &lt;60 segundos você recebe um link público</li>
+          <li>Compartilhe com o time — cada pessoa abre no próprio navegador</li>
+        </ol>
+        <button class="btn btn-green" onclick="downloadConfigured()" style="margin:.5rem 0">⬇️ Baixar este arquivo com configurações salvas</button>
+
+        <h4 style="font-size:13px;margin:1.5rem 0 .5rem;color:var(--blue)">Opção B — GitHub Pages (grátis e permanente)</h4>
+        <ol style="padding-left:1.25rem;color:var(--t2);font-size:13px;line-height:2.2">
+          <li>Crie uma conta em <a href="https://github.com" target="_blank" style="color:var(--blue)">github.com</a> (gratuito)</li>
+          <li>Crie um novo repositório público</li>
+          <li>Faça upload do arquivo HTML (renomeie para <code style="background:var(--s3);padding:1px 5px;border-radius:3px">index.html</code>)</li>
+          <li>Vá em Settings → Pages → Source: main branch</li>
+          <li>Link: <code style="background:var(--s3);padding:1px 5px;border-radius:3px">https://seuuser.github.io/nomedorepositorio</code></li>
+        </ol>
+
+        <h4 style="font-size:13px;margin:1.5rem 0 .5rem;color:var(--amber)">Opção C — Rodar local na rede do escritório</h4>
+        <div class="code-block"><span class="cm"># Abrir terminal na pasta do arquivo</span>
+<span class="cm"># Windows: botão direito na pasta → "Abrir terminal"</span>
+
+python -m http.server 8080
+<span class="cm"># ou, se não tiver Python:</span>
+npx serve .
+
+<span class="cm"># Acesse no computador:</span>
+<span style="color:var(--amber)">http://localhost:8080/sales_intel_completo.html</span>
+
+<span class="cm"># Acesse de outros computadores na mesma rede:</span>
+<span style="color:var(--amber)">http://[SEU-IP-LOCAL]:8080/sales_intel_completo.html</span>
+<span class="cm"># (Veja seu IP em: ipconfig no Windows, ifconfig no Mac/Linux)</span></div>
+      </div>
+
+      <div class="deploy-section">
+        <h3>🔄 Como atualizar quando o sistema receber melhorias</h3>
+        <ol style="padding-left:1.25rem;color:var(--t2);font-size:13px;line-height:2.2">
+          <li>Baixe a nova versão do arquivo HTML</li>
+          <li>Antes de substituir, vá em <strong style="color:var(--t1)">Config → Exportar configurações</strong> e salve o JSON</li>
+          <li>Substitua o arquivo antigo pelo novo</li>
+          <li>Em Config → Importar configurações, cole o JSON salvo</li>
+          <li>Pronto — todas as suas configurações estão de volta</li>
+        </ol>
+      </div>
+    </div>
+
+    <!-- ── CONFIG ── -->
+    <div class="view" id="view-config">
+      <div class="cfg-card">
+        <h3>🔌 Integração Bitrix24</h3>
+        <div class="cfg-grid">
+          <div class="field"><label>URL Bitrix24</label><input id="cfg-url"></div>
+          <div class="field"><label>Webhook Token</label><input id="cfg-token"></div>
+          <div class="field"><label>Claude API Key</label><input type="password" id="cfg-claude"></div>
+          <div class="field"><label>SLA primeiro contato (horas)</label><input type="number" id="cfg-sla" value="4"></div>
+        </div>
+        <button class="btn-save" onclick="saveCfg()">Salvar e Recarregar</button>
+      </div>
+
+      <div class="cfg-card">
+        <h3>🔔 Thresholds de Alertas (dias sem atividade)</h3>
+        <div class="cfg-grid">
+          <div class="field"><label>Qualificação</label><input type="number" id="cfg-dq" value="7"></div>
+          <div class="field"><label>Proposta Enviada</label><input type="number" id="cfg-dp" value="3"></div>
+          <div class="field"><label>Negociação</label><input type="number" id="cfg-dn" value="2"></div>
+          <div class="field"><label>Deal "fantasma" (sem qualquer atividade)</label><input type="number" id="cfg-dg" value="30"></div>
+        </div>
+        <button class="btn-save" onclick="saveAlertCfg()">Salvar thresholds</button>
+      </div>
+
+      <div class="cfg-card">
+        <h3>📱 WhatsApp</h3>
+
+        <div class="wa-card" style="background:var(--s2);border-color:var(--bd)">
+          <h3>📱 Configuração WhatsApp</h3>
+          <p>Alertas críticos são enviados automaticamente a cada hora para os números configurados.</p>
+          <div class="field">
+            <label>Tipo</label>
+            <select id="cfg-wa-type" onchange="toggleWaCfg()">
+              <option value="none">Desativado</option>
+              <option value="callmebot">CallMeBot (gratuito)</option>
+              <option value="evolution">Evolution API</option>
+            </select>
+          </div>
+          <div id="cfg-wa-cb" style="display:none">
+            <div class="cfg-grid">
+              <div class="field"><label>Número (com DDI)</label><input id="cfg-wa-phone" placeholder="+5511999999999"></div>
+              <div class="field"><label>CallMeBot API Key</label><input id="cfg-wa-cbkey" placeholder="123456"></div>
+            </div>
+          </div>
+          <div id="cfg-wa-evo" style="display: none;">
+            <div class="field"><label>Evolution API URL</label><input id="cfg-wa-evo-url"></div>
+            <div class="cfg-grid">
+              <div class="field"><label>Instance</label><input id="cfg-wa-evo-inst"></div>
+              <div class="field"><label>API Key</label><input id="cfg-wa-evo-key"></div>
+            </div>
+            <div class="field"><label>Números (um por linha)</label><textarea id="cfg-wa-evo-nums" rows="3" style="width:100%;background:var(--s3);border:1px solid var(--bd2);border-radius:6px;padding:8px;color:var(--t1);font-size:13px;outline:none;font-family:var(--mono)"></textarea></div>
+          </div>
+          <div style="display:flex;gap:.75rem;margin-top:.75rem">
+            <button class="btn-save" onclick="saveWaCfg()">Salvar WhatsApp</button>
+            <button class="wa-test-btn" onclick="testWa()">Enviar mensagem de teste</button>
+          </div>
+        </div>
+      </div>
+
+
+      <div class="cfg-card">
+        <h3>🔍 Diagnóstico de Atividades</h3>
+        <p style="font-size:13px;color:var(--t2);margin-bottom:.75rem;line-height:1.6">Verifica o que o Bitrix24 está retornando para um deal específico. Cole o ID de um deal que você sabe que tem atividades registradas.</p>
+        <div style="display:flex;gap:.75rem;align-items:flex-end;flex-wrap:wrap">
+          <div class="field" style="margin:0;flex:1"><label>ID do Deal (opcional)</label><input id="diag-deal-id" placeholder="ex: 12345" style="font-family:var(--mono)"/></div>
+          <button class="btn-save" onclick="runDiag()">Diagnosticar Deal</button>
+          <button class="btn-save" style="background:var(--s3);color:var(--t1);border:1px solid var(--bd2)" onclick="runUserDiag()">Ver Time + Atividades</button>
+        </div>
+        <div id="diag-output" style="margin-top:.875rem;font-family:var(--mono);font-size:11px;line-height:1.8;color:var(--t2);background:var(--s2);border-radius:6px;padding:.875rem;display:none;max-height:300px;overflow-y:auto;white-space:pre-wrap"></div>
+      </div>
+      <div class="cfg-card">
+        <h3>💾 Backup de configurações</h3>
+        <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+          <button class="btn btn-outline" onclick="exportCfg()">⬇️ Exportar configurações (JSON)</button>
+          <button class="btn btn-outline" onclick="document.getElementById('imp-file').click()">⬆️ Importar configurações</button>
+          <input type="file" id="imp-file" accept=".json" style="display:none" onchange="importCfg(event)">
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ── DAILY POR PESSOA ── -->
+    <div class="view" id="view-daily-pessoa">
+      <div class="meta-cfg">
+        <div class="field"><label>Meta mensal Comex (R$)</label><input type="number" id="meta-comex" placeholder="ex: 150000" oninput="saveMetas()"/></div>
+        <div class="field"><label>Meta mensal Corretora (R$)</label><input type="number" id="meta-corretora" placeholder="ex: 80000" oninput="saveMetas()"/></div>
+        <div class="field"><label>Meta leads convertidos (%)</label><input type="number" id="meta-conv-leads" value="20" oninput="saveMetas()"/></div>
+        <div class="field"><label>Meta conversão negócios (%)</label><input type="number" id="meta-conv-deals" value="30" oninput="saveMetas()"/></div>
+      </div>
+      <div class="person-tabs" id="person-tabs"></div>
+      <div id="person-views-container"></div>
+    </div>
+
+    <!-- ── HEATMAP ── -->
+    <div class="view" id="view-heatmap">
+      <div class="kpi-grid" id="kpi-heat"></div>
+      <div class="sec-header"><div class="sec-title">🔥 Muito Quente — Ação imediata</div></div>
+      <div class="heat-grid" id="heat-mq"></div>
+      <div class="sec-header"><div class="sec-title">🟠 Quente — Prioridade alta</div></div>
+      <div class="heat-grid" id="heat-q"></div>
+      <div class="sec-header"><div class="sec-title">🔵 Morna — Acompanhar</div></div>
+      <div class="heat-grid" id="heat-m"></div>
+      <div class="sec-header"><div class="sec-title">⚪ Fria — Risco de esfriar</div></div>
+      <div class="heat-grid" id="heat-f"></div>
+    </div>
+
+    <!-- ── FORECAST QUALITATIVO ── -->
+    <div class="view" id="view-forecast">
+      <div class="kpi-grid" id="kpi-fc"></div>
+      <div id="fc-bu-comex"></div>
+      <div id="fc-bu-corretora"></div>
+    </div>
+
+    <!-- ── DECLINADOS ── -->
+    <div class="view" id="view-declinados">
+      <div class="kpi-grid" id="kpi-decl"></div>
+      <div class="sec-header"><div class="sec-title">♻️ Alto potencial de reativação</div></div>
+      <div id="decl-alto"></div>
+      <div class="sec-header"><div class="sec-title">🟡 Potencial médio — abordagem consultiva</div></div>
+      <div id="decl-medio"></div>
+      <div class="sec-header"><div class="sec-title">⚪ Baixo potencial — já esfriou</div></div>
+      <div id="decl-baixo"></div>
+    </div>
+
+  </div><!-- /app-content -->
+</div><!-- /app -->
+
+<!-- LOADING -->
+<div class="loading-overlay hide" id="loading">
+  <div class="spinner"></div>
+  <div class="load-txt" id="load-txt">Conectando ao Bitrix24...</div>
+  <div class="load-steps" id="load-steps">✅ Conectado!
+✅ 40 usuários</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast ok" id="toast">Configurações salvas!</div>
+
+<script>
+// ══════════════════════════════════════
+// STATE
+// ══════════════════════════════════════
+const CFG = {
+  url:'', token:'', claudeKey:'', slaHours:4,
+  daysQual:7, daysProp:3, daysNeg:2, ghostDays:30,
+  wa:{ type:'none', phone:'', cbKey:'', evoUrl:'', evoInst:'', evoKey:'', evoNums:[] }
+};
+
+const D = { deals:[], leads:[], activities:[], users:[], stages:{}, transcripts:{} };
+let ALERTS=[], CHARTS={}, isDemo=false, alertTimer=null;
+
+// ─ ALLOWED USERS (filter) ─
+// Explicit user IDs take priority over name matching
+// Prevents wrong Lucas being picked
+const ALLOWED_IDS=['10','16','174','13236','12520','16574','19934']; // Victor,Lidia,Gabi,LucasCunha,Ana,Thais,Daniel
+// Names as fallback if IDs not found
+const ALLOWED_NAMES=['gabriela','lidia','ana','thais','thaís','daniel','victor'];
+
+function isAllowed(u){
+  if(ALLOWED_IDS.includes(String(u.ID))) return true;
+  const full=(u.NAME+' '+(u.LAST_NAME||'')).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  return ALLOWED_NAMES.some(n=>full.includes(n.normalize('NFD').replace(/[\u0300-\u036f]/g,'')));
+}
+
+// ─ PIPELINE IDs (resolved after load) ─
+const PIPELINE_MAP={ comex:null, corretora:null };
+const STAGE_MAP={ comex_decisao:[], corretora_primeiro:[] };
+
+// ─ METAS ─
+const METAS={ comex:0, corretora:0, convLeads:20, convDeals:30 };
+function saveMetas(){
+  METAS.comex=parseFloat(document.getElementById('meta-comex')?.value)||0;
+  METAS.corretora=parseFloat(document.getElementById('meta-corretora')?.value)||0;
+  METAS.convLeads=parseFloat(document.getElementById('meta-conv-leads')?.value)||20;
+  METAS.convDeals=parseFloat(document.getElementById('meta-conv-deals')?.value)||30;
+}
+function loadMetas(){
+  if(document.getElementById('meta-comex')) document.getElementById('meta-comex').value=METAS.comex||'';
+  if(document.getElementById('meta-corretora')) document.getElementById('meta-corretora').value=METAS.corretora||'';
+  if(document.getElementById('meta-conv-leads')) document.getElementById('meta-conv-leads').value=METAS.convLeads;
+  if(document.getElementById('meta-conv-deals')) document.getElementById('meta-conv-deals').value=METAS.convDeals;
+}
+
+// ─ PERSON ROLES ─
+const PERSON_ROLES={
+  'lidia':'comex','gabriela':'comex','ana':'corretora',
+  'thais':'sdr','thaís':'sdr','daniel':'sdr','victor':'closer','lucas':'parcerias'
+};
+function personRole(u){
+  // Normalize accents for matching (thais/thaís)
+  const n=(u.NAME+' '+(u.LAST_NAME||'')).toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const normalized=Object.fromEntries(
+    Object.entries(PERSON_ROLES).map(([k,v])=>[k.normalize('NFD').replace(/[̀-ͯ]/g,''),v])
+  );
+  for(const[k,v] of Object.entries(normalized)){ if(n.includes(k)) return v; }
+  return 'closer';
+}
+
+// ─ OUTBOUND SOURCE IDs (skip SLA) ─
+const OUTBOUND_SOURCES=['CALL','COLD_CALL','OUTBOUND','COLD'];
+
+// ══════════════════════════════════════
+// ONBOARDING NAV
+// ══════════════════════════════════════
+function goStep(n){
+  [1,2,3,4].forEach(i=>{
+    document.getElementById('ob-'+i).classList.toggle('active', i===n);
+    const btn=document.getElementById('ostep-'+i);
+    btn.classList.toggle('active', i===n);
+    btn.classList.toggle('done', i<n);
+  });
+}
+
+function toggleWaConfig(){
+  const t=document.getElementById('wa-type').value;
+  document.getElementById('wa-callmebot-config').style.display = t==='callmebot'?'block':'none';
+  document.getElementById('wa-evolution-config').style.display = t==='evolution'?'block':'none';
+}
+
+function toggleWaCfg(){
+  const t=document.getElementById('cfg-wa-type').value;
+  document.getElementById('cfg-wa-cb').style.display = t==='callmebot'?'block':'none';
+  document.getElementById('cfg-wa-evo').style.display = t==='evolution'?'block':'none';
+}
+
+// ══════════════════════════════════════
+// TEST CONNECTION
+// ══════════════════════════════════════
+async function testConnection(){
+  const url=(document.getElementById('inp-url').value||'').trim().replace(/\/$/,'');
+  const token=(document.getElementById('inp-token').value||'').trim();
+  const res=document.getElementById('test-result');
+
+  if(!url||!token){ showRes('error','Preencha a URL e o Token primeiro.'); return; }
+
+  res.style.display='block';
+  res.className='test-result';
+  res.textContent='Testando conexão...';
+
+  try{
+    const r=await bCall(url,token,'app.info',{});
+    showRes('ok','✅ Conexão bem-sucedida! Bitrix24 respondeu corretamente.');
+  }catch(e){
+    showRes('error','❌ Falha: '+e.message+'. Verifique a URL e o token.');
+  }
+
+  function showRes(type, txt){
+    res.className='test-result '+(type==='ok'?'ok':'err');
+    res.textContent=txt;
+  }
+}
+
+function serializeBitrix(params, prefix){
+  const parts=[];
+  for(const key in params){
+    const val=params[key];
+    const fullKey=prefix?`${prefix}[${key}]`:key;
+    if(val===null||val===undefined) continue;
+    if(Array.isArray(val)){
+      val.forEach((v,i)=>{parts.push(`${encodeURIComponent(fullKey+'['+i+']')}=${encodeURIComponent(v)}`);});
+    }else if(typeof val==='object'){
+      const nested=serializeBitrix(val,fullKey);
+      nested.forEach(p=>parts.push(p));
+    }else{
+      parts.push(`${encodeURIComponent(fullKey)}=${encodeURIComponent(val)}`);
+    }
+  }
+  return parts;
+}
+
+async function bCall(url, token, method, params){
+  const base=`${url}/rest/${token}/${method}`;
+  const qs=serializeBitrix(params,'').join('&');
+  const fullUrl=qs?`${base}?${qs}`:base;
+  const resp=await fetch(fullUrl);
+  if(!resp.ok) throw new Error('HTTP '+resp.status);
+  const j=await resp.json();
+  if(j.error) throw new Error(j.error_description||j.error);
+  return j;
+}
+
+// ══════════════════════════════════════
+// CONNECT & LOAD
+// ══════════════════════════════════════
+async function connectAndLoad(){
+  const url=(document.getElementById('inp-url').value||'').trim().replace(/\/$/,'');
+  const token=(document.getElementById('inp-token').value||'').trim();
+  if(!url||!token){ toast('Preencha a URL e o Token','err'); return; }
+  CFG.url=url; CFG.token=token;
+  CFG.claudeKey=(document.getElementById('inp-claude').value||'').trim();
+  CFG.slaHours=parseInt(document.getElementById('inp-sla').value)||4;
+  await fetchAll();
+}
+
+async function saveAndEnter(){
+  // collect WA config from step 3
+  const waType=document.getElementById('wa-type').value;
+  CFG.wa.type=waType;
+  if(waType==='callmebot'){
+    CFG.wa.phone=document.getElementById('wa-phone').value.trim();
+    CFG.wa.cbKey=document.getElementById('wa-cbkey').value.trim();
+  }else if(waType==='evolution'){
+    CFG.wa.evoUrl=document.getElementById('wa-evo-url').value.trim();
+    CFG.wa.evoInst=document.getElementById('wa-evo-inst').value.trim();
+    CFG.wa.evoKey=document.getElementById('wa-evo-key').value.trim();
+    CFG.wa.evoNums=(document.getElementById('wa-evo-nums').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  }
+  if(CFG.url) await fetchAll();
+  else enterApp();
+}
+
+function startDemo(){
+  isDemo=true; CFG.url='demo'; CFG.token='demo';
+  loadDemo(); enterApp(); renderAll();
+}
+
+function enterApp(){
+  document.getElementById('s-onboard').classList.remove('active');
+  document.getElementById('s-app').classList.add('active');
+  startAlertTimer();
+}
+
+// ══════════════════════════════════════
+// BITRIX24 FETCH (real)
+// ══════════════════════════════════════
+async function fetchAll(){
+  showLoad(true,'Conectando ao Bitrix24...');
+  try{
+    await bCall(CFG.url,CFG.token,'app.info',{});
+    addStep('✅ Conectado!');
+
+    // Users
+    const users=await paginate('user.get',{ACTIVE:'Y'});
+    D.users=users; addStep(`✅ ${users.length} usuários`);
+
+    // Leads (90 days) — all statuses including declined
+    const d90=new Date(Date.now()-90*864e5).toISOString();
+    const leads=await paginate('crm.lead.list',{
+      filter:{'>DATE_CREATE':d90},
+      select:['ID','TITLE','STATUS_ID','ASSIGNED_BY_ID','DATE_CREATE','SOURCE_ID','COMMENTS','LAST_ACTIVITY_TIME','OPPORTUNITY','UF_CRM_LEAD_TYPE']
+    });
+    D.leads=leads; addStep(`✅ ${leads.length} leads`);
+
+    // Deals open — all pipelines (CATEGORY_ID tells us which pipeline)
+    const openDeals=await paginate('crm.deal.list',{
+      filter:{'CLOSED':'N','>DATE_CREATE':d90},
+      select:['ID','TITLE','STAGE_ID','ASSIGNED_BY_ID','OPPORTUNITY','CLOSEDATE',
+              'DATE_CREATE','CLOSED','CATEGORY_ID','SOURCE_ID','COMMENTS',
+              'LAST_ACTIVITY_TIME','LEAD_ID','DATE_MODIFY','UF_CRM_1_LEAD_TYPE']
+    },3000);
+
+    // Deals closed (60d — includes declined)
+    const d60=new Date(Date.now()-180*864e5).toISOString(); // 6 months for full history
+    const closedDeals=await paginate('crm.deal.list',{
+      filter:{'>CLOSEDATE':d60,'CLOSED':'Y'},
+      select:['ID','TITLE','STAGE_ID','ASSIGNED_BY_ID','OPPORTUNITY','CLOSEDATE','DATE_CREATE','CLOSED','IS_MANUAL_OPPORTUNITY','CATEGORY_ID','SOURCE_ID','COMMENTS','LAST_ACTIVITY_TIME','CLOSEDATE_AFTER']
+    });
+
+    D.deals=[...openDeals,...closedDeals];
+    addStep(`✅ ${D.deals.length} negócios`);
+
+    // ── ATIVIDADES CRM CONCLUÍDAS (como o relatório "Atividades dos gestores") ──
+    // Busca por COMPLETED=Y para contar acionamentos realizados (igual ao relatório)
+    // Fetch ALL activities — Daniel alone has 123/day, team needs high limit
+    const actsCompleted=await paginate('crm.activity.list',{
+      filter:{'>CREATED':d60},
+      select:['ID','TYPE_ID','RESPONSIBLE_ID','OWNER_ID','OWNER_TYPE_ID','COMPLETED',
+              'DEADLINE','END_TIME','CREATED','SUBJECT','DESCRIPTION',
+              'PROVIDER_TYPE_ID','PROVIDER_PARAMS','DIRECTION','DURATION']
+    },15000);
+
+    // Single comprehensive fetch above covers all — no need for separate pending fetch
+    const actsPending=[];
+    const actsLeads=[];
+
+    const actsRaw=[...actsCompleted,...actsPending];
+    const voipExtra=[];
+    addStep(`✅ ${actsCompleted.length} atividades (todas)`); const allActsCRM=actsCompleted;
+    addStep(`ℹ️ Types: ${[...new Set(actsRaw.map(a=>a.TYPE_ID))].join(',')}`);
+
+    // ── TAREFAS vinculadas ao CRM ──
+    let tasksRaw=[];
+    try{
+      tasksRaw=await paginate('tasks.task.list',{
+        filter:{'>CREATED_DATE':d60},
+        select:['ID','TITLE','RESPONSIBLE_ID','CREATED_DATE','DEADLINE','STATUS','UF_CRM_TASK','CLOSED_DATE','CREATED_BY']
+      },3000);
+      addStep(`✅ ${tasksRaw.length} tarefas`);
+    }catch(e){ addStep('⚠️ Tarefas: '+e.message); }
+
+    // ── LIGAÇÕES VoIP (voximplant — confirmado: ligações ficam no LEAD, CRM_ENTITY_TYPE=LEAD) ──
+    // VoIP calls show as TYPE_ID=2 in crm.activity.list too — already included above
+    // voximplant adds: duration, transcript URL, and calls linked to leads
+    let callsRaw=[];
+    try{
+      // Fetch VoIP for all allowed users — confirmed 67+ calls/day for Daniel alone
+      callsRaw=await paginate('voximplant.statistic.get',{
+        filter:{'>CALL_START_DATE':d60},
+        select:['ID','CALL_DURATION','CALL_START_DATE','CALL_FAILED_REASON',
+                'PORTAL_USER_ID','CRM_ENTITY_ID','CRM_ENTITY_TYPE','TRANSCRIPT_URL']
+      },8000);
+      addStep(`✅ ${callsRaw.length} ligações VoIP (voximplant)`);
+    }catch(e){ addStep('⚠️ VoIP: '+e.message); }
+
+    // Normalize VoIP → activity format (OWNER_TYPE follows CRM_ENTITY_TYPE)
+    const callsNorm=callsRaw.map(c=>({
+      ID:'vox_'+c.ID,
+      TYPE_ID:'2',  // Confirmed: calls are TYPE_ID=2 in this Bitrix
+      RESPONSIBLE_ID:c.PORTAL_USER_ID,
+      OWNER_ID:c.CRM_ENTITY_ID,
+      OWNER_TYPE_ID:c.CRM_ENTITY_TYPE==='LEAD'?'1':'2',
+      COMPLETED:'Y',
+      CREATED:c.CALL_START_DATE,
+      END_TIME:c.CALL_START_DATE,
+      SUBJECT:'Chamada VoIP ('+(c.CALL_DURATION||0)+'s)',
+      DURATION:c.CALL_DURATION,
+      _isCall:true,
+      _transcriptUrl:c.TRANSCRIPT_URL||null
+    }));
+
+    // ── AGENDA / CALENDÁRIO (compromissos do dia) ──
+    let calEvents=[];
+    try{
+      const today0=new Date(); today0.setHours(0,0,0,0);
+      const today1=new Date(); today1.setHours(23,59,59,999);
+      const cal=await bCall(CFG.url,CFG.token,'calendar.event.get',{
+        type:'user',
+        ownerId: D.users[0]?.ID||'1',
+        from: today0.toISOString(),
+        to: today1.toISOString()
+      });
+      calEvents=Array.isArray(cal.result)?cal.result:[];
+      if(calEvents.length>0) addStep(`✅ ${calEvents.length} eventos de calendário`);
+    }catch(e){}
+    D.calEvents=calEvents;
+
+    // Normalize tasks → activity format
+    const tasksNorm=tasksRaw.map(t=>({
+      ID:'task_'+t.ID,
+      TYPE_ID:'6',
+      RESPONSIBLE_ID:t.RESPONSIBLE_ID,
+      OWNER_ID:t.UF_CRM_TASK?(String(t.UF_CRM_TASK)).replace(/[^0-9]/g,''):'0',
+      OWNER_TYPE_ID:'2',
+      COMPLETED:t.STATUS==='5'?'Y':'N',
+      CREATED:t.CREATED_DATE,
+      DEADLINE:t.DEADLINE,
+      END_TIME:t.CLOSED_DATE,
+      SUBJECT:t.TITLE,
+      _isTask:true
+    })).filter(t=>t.OWNER_ID&&t.OWNER_ID!=='0');
+
+    // Dedup VoIP calls vs CRM activities
+    const existCallIds=new Set(actsRaw.filter(a=>a.TYPE_ID==='10'||a.TYPE_ID===10).map(a=>a.OWNER_ID+'_'+(a.CREATED||'').slice(0,10)));
+    const callsDeduped=callsNorm.filter(c=>!existCallIds.has(c.OWNER_ID+'_'+(c.CREATED||'').slice(0,10)));
+    // Dedup voximplant against crm.activity.list (TYPE_ID=2 calls already there)
+    // Match by RESPONSIBLE_ID + date to avoid double counting
+    const existCallSigs=new Set(
+      actsRaw.filter(a=>String(a.TYPE_ID)==='2')
+             .map(a=>String(a.RESPONSIBLE_ID)+'_'+(a.CREATED||'').slice(0,16))
+    );
+    const callsDeduped2=callsNorm.filter(c=>{
+      const sig=String(c.RESPONSIBLE_ID)+'_'+(c.CREATED||'').slice(0,16);
+      return !existCallSigs.has(sig);
+    });
+    D.activities=[...actsRaw,...voipExtra,...tasksNorm,...callsDeduped2];
+    addStep(`✅ Total atividades: ${D.activities.length} (${actsRaw.length} CRM + ${callsDeduped2.length} VoIP extra + ${tasksNorm.length} tarefas)`);
+
+    // ── TRANSCRIÇÕES: buscar PROVIDER_PARAMS de ligações VoIP ──
+    // As transcrições ficam em PROVIDER_PARAMS.TRANSCRIPT ou em campo separado
+    // Extrair e indexar por OWNER_ID para uso nos insights de IA
+    D.transcripts={};
+    D.activities.forEach(a=>{
+      if((a.TYPE_ID==='10'||a.TYPE_ID===10)&&a.PROVIDER_PARAMS){
+        try{
+          const pp=typeof a.PROVIDER_PARAMS==='string'?JSON.parse(a.PROVIDER_PARAMS):a.PROVIDER_PARAMS;
+          const transcript=pp.TRANSCRIPT||pp.transcript||pp.CALL_TRANSCRIPT||'';
+          const ownerId=String(a.OWNER_ID||'');
+          if(transcript&&ownerId){
+            if(!D.transcripts[ownerId]) D.transcripts[ownerId]=[];
+            D.transcripts[ownerId].push({
+              date:a.END_TIME||a.CREATED,
+              duration:a.DURATION||0,
+              text:transcript.slice(0,1000), // cap at 1000 chars per transcript
+              responsible:a.RESPONSIBLE_ID
+            });
+          }
+        }catch(e){}
+      }
+    });
+
+    const transcriptCount=Object.keys(D.transcripts).length;
+    if(transcriptCount>0) addStep(`✅ ${transcriptCount} deals com transcrição`);
+    addStep(`✅ ${D.activities.length} total (atividades+VoIP+tarefas)`);
+
+    // Stages + Categories (to identify pipeline names)
+    D.categories={};
+    try{
+      const defSt=await bCall(CFG.url,CFG.token,'crm.dealcategorystage.list',{id:0});
+      if(defSt.result) defSt.result.forEach(s=>{D.stages[s.STATUS_ID]=s;});
+
+      const cats=await bCall(CFG.url,CFG.token,'crm.dealcategory.list',{});
+      if(cats.result){
+        cats.result.forEach(c=>{ D.categories[c.ID]=c; });
+        addStep(`✅ ${cats.result.length} pipelines: ${cats.result.map(c=>c.NAME).join(', ')}`);
+        for(const c of cats.result){
+          const st=await bCall(CFG.url,CFG.token,'crm.dealcategorystage.list',{id:c.ID});
+          if(st.result) st.result.forEach(s=>{
+            D.stages[s.STATUS_ID]={...s, PIPELINE_ID:c.ID, PIPELINE_NAME:c.NAME};
+          });
+          await sleep(400);
+        }
+      }
+    }catch(e){ addStep('⚠️ Etapas: '+e.message); }
+
+    addStep('✅ Calculando métricas...');
+    enrichDeals();
+    enterApp();
+    renderAll();
+    addStep('✅ Pronto!');
+    await sleep(600);
+    showLoad(false);
+    toast(`Carregado: ${D.deals.length} deals, ${D.leads.length} leads, ${D.activities.length} atividades`,'ok');
+
+  }catch(e){
+    showLoad(false);
+    toast(`Erro: ${e.message}. Carregando demonstração.`,'err');
+    isDemo=true; loadDemo(); enterApp(); renderAll();
+  }
+}
+
+async function paginate(method, params, maxRecords=5000){
+  const res=[]; let start=0, total=null;
+  do{
+    const r=await bCall(CFG.url,CFG.token,method,{...params,start,limit:50});
+    if(!r.result) break;
+    const items=Array.isArray(r.result)?r.result:Object.values(r.result);
+    res.push(...items);
+    if(total===null) total=Math.min(r.total||items.length, maxRecords);
+    start+=50;
+    if(res.length>=total) break;
+    await sleep(520);
+  }while(res.length<total && start<maxRecords);
+  return res;
+}
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function enrichDeals(){
+  const now=new Date();
+  // Pre-index activities by owner for performance
+  const actsByDeal={};
+  const actsByLead={};
+  // Index by responsible too — for counting acionamentos per user
+  const actsByUser={};
+  D.activities.forEach(a=>{
+    const oid=String(a.OWNER_ID||'');
+    const otype=String(a.OWNER_TYPE_ID||'');
+    const uid=String(a.RESPONSIBLE_ID||'');
+
+    // Index by responsible (for Daily counts)
+    if(uid&&uid!=='0'){
+      if(!actsByUser[uid]) actsByUser[uid]=[];
+      actsByUser[uid].push(a);
+    }
+
+    if(!oid||oid==='0') return;
+
+    // Index by entity type
+    if(otype==='1'){
+      if(!actsByLead[oid]) actsByLead[oid]=[];
+      actsByLead[oid].push(a);
+    } else if(otype==='2'){
+      if(!actsByDeal[oid]) actsByDeal[oid]=[];
+      actsByDeal[oid].push(a);
+    } else {
+      // Unknown type — index as both
+      if(!actsByDeal[oid]) actsByDeal[oid]=[];
+      actsByDeal[oid].push(a);
+    }
+  });
+  // Make actsByUser globally accessible
+  D._actsByUser=actsByUser;
+  console.log('[enrichDeals] deals indexed:',Object.keys(actsByDeal).length,'leads indexed:',Object.keys(actsByLead).length,'total acts:',D.activities.length);
+  console.log('[enrichDeals] indexed deals:', Object.keys(actsByDeal).length, 'leads:', Object.keys(actsByLead).length);
+
+  D.deals.forEach(d=>{
+    // Activities can be on the deal OR on the originating lead
+    const dealActs=[
+      ...(actsByDeal[String(d.ID)]||[]),
+      ...(d.LEAD_ID?actsByLead[String(d.LEAD_ID)]||[]:[])
+    ];
+    const completedActs=dealActs.filter(a=>a.COMPLETED==='Y'||a.COMPLETED===true);
+    completedActs.sort((a,b)=>new Date(b.END_TIME||b.CREATED)-new Date(a.END_TIME||a.CREATED));
+    // Use END_TIME of last completed, fallback to LAST_ACTIVITY_TIME from deal itself
+    d._lastAct=completedActs[0]?.END_TIME||completedActs[0]?.CREATED||d.LAST_ACTIVITY_TIME||null;
+    d._actCount=dealActs.length;
+    d._completedCount=completedActs.length;
+    // Acionamentos = calls (1,10) + chats/canal aberto (6) + meetings (2)
+    d._acionCount=dealActs.filter(a=>['1','2','6','10'].includes(String(a.TYPE_ID))).length;
+
+    // Days in stage: use DATE_MODIFY as proxy if no stage history
+    if(!d._daysInStage){
+      const modDate=d.DATE_MODIFY||d.DATE_CREATE;
+      d._daysInStage=modDate?Math.round((now-new Date(modDate))/864e5):0;
+    }
+  });
+  // Also enrich leads
+  D.leads.forEach(l=>{
+    const leadActs=actsByLead[String(l.ID)]||[];
+    l._actCount=leadActs.length;
+    l._lastAct=leadActs.filter(a=>a.COMPLETED==='Y').sort((a,b)=>new Date(b.END_TIME||b.CREATED)-new Date(a.END_TIME||a.CREATED))[0]?.END_TIME||l.LAST_ACTIVITY_TIME||null;
+  });
+}
+
+// ══════════════════════════════════════
+// DEMO DATA
+// ══════════════════════════════════════
+function loadDemo(){
+  const now=new Date();
+  const da=(d)=>new Date(now-d*864e5).toISOString();
+
+  D.users=[
+    {ID:'1',NAME:'Lidia',LAST_NAME:'Ariane'},
+    {ID:'2',NAME:'Gabriela',LAST_NAME:'Oliveira'},
+    {ID:'3',NAME:'Victor',LAST_NAME:'Langenbach'},
+    {ID:'4',NAME:'Carlos',LAST_NAME:'Silva'}
+  ];
+
+  D.stages={
+    'NEW':{NAME:'Novo',STATUS_ID:'NEW',COLOR:'#00d49a'},
+    'PREPARATION':{NAME:'Qualificação',STATUS_ID:'PREPARATION',COLOR:'#4888f0'},
+    'PREPAYMENT_INVOICE':{NAME:'Proposta Enviada',STATUS_ID:'PREPAYMENT_INVOICE',COLOR:'#9860f0'},
+    'EXECUTING':{NAME:'Negociação',STATUS_ID:'EXECUTING',COLOR:'#f0a020'},
+    'FINAL_INVOICE':{NAME:'Fechamento',STATUS_ID:'FINAL_INVOICE',COLOR:'#f04848'},
+    'WON':{NAME:'Ganho',STATUS_ID:'WON',COLOR:'#00d49a'},
+    'LOSE':{NAME:'Perdido',STATUS_ID:'LOSE',COLOR:'#5a5856'}
+  };
+
+  D.deals=[
+    {ID:'1',TITLE:'Empresa ABC — Regime Especial AL',STAGE_ID:'PREPAYMENT_INVOICE',ASSIGNED_BY_ID:'1',OPPORTUNITY:45000,CLOSEDATE:da(-5).split('T')[0],DATE_CREATE:da(25),CLOSED:'N',_daysInStage:18,_lastAct:da(8)},
+    {ID:'2',TITLE:'Tech Solutions — Habilitação Radar Pro',STAGE_ID:'EXECUTING',ASSIGNED_BY_ID:'2',OPPORTUNITY:28000,CLOSEDATE:da(-3).split('T')[0],DATE_CREATE:da(18),CLOSED:'N',_daysInStage:6,_lastAct:da(2)},
+    {ID:'3',TITLE:'Global Imports — Radar Expresso',STAGE_ID:'PREPARATION',ASSIGNED_BY_ID:'1',OPPORTUNITY:12000,CLOSEDATE:da(-15).split('T')[0],DATE_CREATE:da(10),CLOSED:'N',_daysInStage:10,_lastAct:da(3)},
+    {ID:'4',TITLE:'Comércio Norte — Vision B2B',STAGE_ID:'PREPAYMENT_INVOICE',ASSIGNED_BY_ID:'3',OPPORTUNITY:18000,CLOSEDATE:da(-8).split('T')[0],DATE_CREATE:da(30),CLOSED:'N',_daysInStage:22,_lastAct:da(14)},
+    {ID:'5',TITLE:'Industrias Sul — Câmbio Corp.',STAGE_ID:'EXECUTING',ASSIGNED_BY_ID:'4',OPPORTUNITY:67000,CLOSEDATE:da(-1).split('T')[0],DATE_CREATE:da(45),CLOSED:'N',_daysInStage:12,_lastAct:da(1)},
+    {ID:'6',TITLE:'Exporta Fácil — Regime AL Premium',STAGE_ID:'NEW',ASSIGNED_BY_ID:'2',OPPORTUNITY:22000,CLOSEDATE:da(-20).split('T')[0],DATE_CREATE:da(5),CLOSED:'N',_daysInStage:5,_lastAct:null},
+    {ID:'7',TITLE:'LogiTrade — Habilitação Radar',STAGE_ID:'PREPARATION',ASSIGNED_BY_ID:'4',OPPORTUNITY:9500,CLOSEDATE:da(-12).split('T')[0],DATE_CREATE:da(8),CLOSED:'N',_daysInStage:8,_lastAct:null},
+    {ID:'8',TITLE:'DataCorp — Vision Enterprise',STAGE_ID:'FINAL_INVOICE',ASSIGNED_BY_ID:'1',OPPORTUNITY:85000,CLOSEDATE:da(-2).split('T')[0],DATE_CREATE:da(60),CLOSED:'N',_daysInStage:9,_lastAct:da(4)},
+    // closed
+    {ID:'9',TITLE:'Empresa DEF',STAGE_ID:'WON',ASSIGNED_BY_ID:'1',OPPORTUNITY:32000,CLOSEDATE:da(5).split('T')[0],DATE_CREATE:da(35),CLOSED:'Y',IS_MANUAL_OPPORTUNITY:'Y',_won:true},
+    {ID:'10',TITLE:'Empresa GHI',STAGE_ID:'LOSE',ASSIGNED_BY_ID:'2',OPPORTUNITY:15000,CLOSEDATE:da(8).split('T')[0],DATE_CREATE:da(28),CLOSED:'Y',_won:false},
+    {ID:'11',TITLE:'Empresa JKL',STAGE_ID:'WON',ASSIGNED_BY_ID:'3',OPPORTUNITY:48000,CLOSEDATE:da(3).split('T')[0],DATE_CREATE:da(40),CLOSED:'Y',_won:true},
+    {ID:'12',TITLE:'Empresa MNO',STAGE_ID:'LOSE',ASSIGNED_BY_ID:'4',OPPORTUNITY:21000,CLOSEDATE:da(12).split('T')[0],DATE_CREATE:da(30),CLOSED:'Y',_won:false},
+    {ID:'13',TITLE:'Empresa PQR',STAGE_ID:'WON',ASSIGNED_BY_ID:'2',OPPORTUNITY:55000,CLOSEDATE:da(1).split('T')[0],DATE_CREATE:da(50),CLOSED:'Y',_won:true}
+  ];
+
+  D.leads=[
+    {ID:'1',TITLE:'Lead — Distribuidora Alfa',STATUS_ID:'NEW',ASSIGNED_BY_ID:'1',DATE_CREATE:da(0.1),SOURCE_ID:'WEB'},
+    {ID:'2',TITLE:'Lead — Importadora Beta',STATUS_ID:'NEW',ASSIGNED_BY_ID:'2',DATE_CREATE:da(0.2),SOURCE_ID:'ADVERTISING'},
+    {ID:'3',TITLE:'Lead — Tradings Gama',STATUS_ID:'IN_PROCESS',ASSIGNED_BY_ID:'1',DATE_CREATE:da(1),SOURCE_ID:'WEB'},
+    {ID:'4',TITLE:'Lead — Commerce Delta',STATUS_ID:'NEW',ASSIGNED_BY_ID:'3',DATE_CREATE:da(0.05),SOURCE_ID:'PARTNER'},
+    {ID:'5',TITLE:'Lead — Global Trade',STATUS_ID:'NEW',ASSIGNED_BY_ID:'4',DATE_CREATE:da(0.5),SOURCE_ID:'WEB'}
+  ];
+
+  // Activities with varying productivity
+  D.activities=[];
+  const actCounts={'1':12,'2':8,'3':14,'4':4};
+  for(const[uid,cnt] of Object.entries(actCounts)){
+    for(let i=0;i<cnt;i++){
+      const dAgo=i<cnt*.4?0:i<cnt*.7?1:2;
+      const dealId=D.deals.filter(d=>d.CLOSED==='N')[Math.floor(Math.random()*8)].ID;
+      D.activities.push({
+        ID:`a${uid}_${i}`,TYPE_ID:['1','1','1','2','4','6'][Math.floor(Math.random()*6)],
+        RESPONSIBLE_ID:uid,OWNER_ID:dealId,OWNER_TYPE_ID:'2',
+        COMPLETED:dAgo>0||Math.random()>.3?'Y':'N',
+        CREATED:da(dAgo+Math.random()*.5),
+        DEADLINE:new Date(Date.now()+(3+i)*864e5).toISOString()
+      });
+    }
+  }
+  // FUP for some deals
+  ['1','3','5','8'].forEach((did,i)=>{
+    const d=D.deals.find(x=>x.ID===did);
+    if(d) D.activities.push({ID:`fup_${did}`,TYPE_ID:'1',RESPONSIBLE_ID:d.ASSIGNED_BY_ID,OWNER_ID:did,OWNER_TYPE_ID:'2',COMPLETED:'N',CREATED:da(1),DEADLINE:new Date(Date.now()+(2+i)*864e5).toISOString()});
+  });
+}
+
+// ══════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════
+function allowedUsers(){
+  const seen=new Set();
+  const result=[];
+  for(const u of D.users){
+    if(!isAllowed(u)) continue;
+    // Get canonical first name to deduplicate (e.g. two Lucas → keep first)
+    const firstName=(u.NAME||'').toLowerCase().trim();
+    const key=firstName; // deduplicate by first name
+    if(!seen.has(key)){ seen.add(key); result.push(u); }
+  }
+  return result;
+}
+function userById(id){ return D.users.find(u=>u.ID===id); }
+function isOutbound(entity){ return OUTBOUND_SOURCES.some(s=>(entity.SOURCE_ID||'').toUpperCase().includes(s)); }
+
+function heatScore(entity, type){
+  // Returns 0-100 heat score based on activity recency, stage, interactions, signals
+  const now=new Date();
+  let score=50;
+  const lastAct=entity._lastAct||entity.LAST_ACTIVITY_TIME;
+  if(lastAct){
+    const daysAgo=(now-new Date(lastAct))/864e5;
+    if(daysAgo<1) score+=30;
+    else if(daysAgo<3) score+=20;
+    else if(daysAgo<7) score+=10;
+    else if(daysAgo>14) score-=20;
+    else if(daysAgo>30) score-=35;
+  } else { score-=25; }
+
+  // Has future FUP?
+  const hasFup=D.activities.find(a=>a.OWNER_ID===entity.ID&&a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>now);
+  if(hasFup) score+=15; else score-=10;
+
+  // Activity count (use pre-computed count if available)
+  const actCnt=entity._acionCount||entity._actCount||D.activities.filter(a=>String(a.OWNER_ID)===String(entity.ID)).length;
+  if(actCnt>5) score+=10;
+  else if(actCnt===0) score-=15;
+
+  // Text signals in title/comments
+  const txt=((entity.TITLE||'')+(entity.COMMENTS||'')).toLowerCase();
+  if(/fechamento|proposta|cadas|urgente|decidir|sim|aprova/.test(txt)) score+=20;
+  if(/caro|desist|n.o|cancelou|perdido|fora/.test(txt)) score-=20;
+
+  // Stage signals — using real Saygo stage names
+  const sn=getStageName(entity).toLowerCase();
+  if(/tomada de decis|fechará|fechar|contrato|faturamento/.test(sn)) score+=20;
+  if(/proposta|tomada|análise|analis/.test(sn)) score+=10;
+  if(/oportunidade aceita/.test(sn)) score+=5;
+  if(/novo|qualif/.test(sn)) score-=5;
+
+  // Days stalled
+  if((entity._daysInStage||0)>14) score-=15;
+  if((entity._daysInStage||0)>21) score-=15;
+
+  return Math.max(0,Math.min(100,score));
+}
+
+function heatClass(score){
+  if(score>=75) return 'mq';
+  if(score>=55) return 'q';
+  if(score>=35) return 'm';
+  return 'f';
+}
+
+function heatLabel(score){
+  if(score>=75) return 'Muito quente';
+  if(score>=55) return 'Quente';
+  if(score>=35) return 'Morna';
+  return 'Fria';
+}
+
+function declineScore(entity){
+  // Reactivation potential for declined deals
+  const now=new Date();
+  let score=40;
+  const txt=((entity.TITLE||'')+(entity.COMMENTS||'')).toLowerCase();
+  if(/timing|prazo|depois|futuro|ano que vem|retomar|voltar/.test(txt)) score+=30;
+  if(/orçamento|budget|caro|preço/.test(txt)) score+=15;
+  if(/decisor|diret|aprovação|reunião/.test(txt)) score+=10;
+  if(/concorrente|outro|fechou|nao quer|não quer/.test(txt)) score-=20;
+  const lastAct=entity._lastAct||entity.LAST_ACTIVITY_TIME;
+  if(lastAct){
+    const days=(now-new Date(lastAct))/864e5;
+    if(days<30) score+=15;
+    else if(days>90) score-=20;
+  }
+  const acts=D.activities.filter(a=>a.OWNER_ID===entity.ID);
+  if(acts.length>3) score+=10;
+  return Math.max(0,Math.min(100,score));
+}
+
+// Real stage names from Bitrix (from deal cards)
+// Comex stages: Oportunidade Aceita, Análise prévia, Proposta, Em tomada de decisão,
+//               Fechará no próximo mês, Contrato, Teste Vision, Faturamento, Fechar negócio
+// Corretora stages: Aguardando primeiro fechamento (and similar)
+// Pipeline IDs — confirmed from deal #9632 (CATEGORY_ID:0 = Negócios Saygo Comex)
+// crm.dealcategory.list does NOT return the default pipeline (ID:0)
+const PIPELINE_COMEX_ID='0';      // "Negócios Saygo Comex" — pipeline padrão (CATEGORY_ID:0)
+const PIPELINE_OPERACIONAL_ID='2';// "Operacional Saygo Comex" — sub-pipeline operacional
+const PIPELINE_CORRETORA_ID='4';  // "Pipeline Saygo Corretora"
+const PIPELINE_PARCERIAS_ID='12'; // "Parcerias"
+
+// Forecast stages — keywords in stage name
+const FORECAST_STAGE_KW=/tomada de decis|fechará|fechar|contrato|faturamento|primeiro fech|aprovação/i;
+
+function getStageName(d){ return D.stages[d.STAGE_ID]?.NAME||d.STAGE_ID||''; }
+
+function isPipelineComex(d){
+  // Comex = pipeline padrão (CATEGORY_ID:0 or undefined) OR Operacional (ID:2)
+  const cid=String(d.CATEGORY_ID||'0');
+  if(cid==='0'||cid===PIPELINE_OPERACIONAL_ID) return true;
+  const pname=(D.stages[d.STAGE_ID]?.PIPELINE_NAME||'').toLowerCase();
+  return pname.includes('comex')||pname.includes('negócio');
+}
+
+function isPipelineCorretora(d){
+  const cid=String(d.CATEGORY_ID||'0');
+  if(cid===PIPELINE_CORRETORA_ID) return true;
+  const pname=(D.stages[d.STAGE_ID]?.PIPELINE_NAME||'').toLowerCase();
+  return pname.includes('corretora');
+}
+
+function isPipelineParcerias(d){
+  return String(d.CATEGORY_ID||'0')===PIPELINE_PARCERIAS_ID;
+}
+
+function isForecastStage(d){
+  return FORECAST_STAGE_KW.test(getStageName(d));
+}
+function isDeclined(d){ return d.STAGE_ID==='LOSE'||d.CLOSED==='Y'&&(d.STAGE_ID||'').includes('LOSE'); }
+function isActive(d){ return d.CLOSED!=='Y'&&!isDeclined(d); }
+
+// ══════════════════════════════════════
+// METRICS
+// ══════════════════════════════════════
+function metrics(){
+  const now=new Date();
+  // Filter to allowed users only
+  const allowedIds=new Set(allowedUsers().map(u=>u.ID));
+  const open=D.deals.filter(d=>isActive(d)&&allowedIds.has(d.ASSIGNED_BY_ID));
+  const closed=D.deals.filter(d=>d.CLOSED==='Y'&&allowedIds.has(d.ASSIGNED_BY_ID));
+  const won=closed.filter(d=>d._won||d.STAGE_ID==='WON');
+  const lost=closed.filter(d=>!d._won&&d.STAGE_ID!=='WON');
+  const pipe=open.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0);
+  const monthEnd=new Date(now.getFullYear(),now.getMonth()+1,0);
+  const fcDeals=open.filter(d=>d.CLOSEDATE&&new Date(d.CLOSEDATE)<=monthEnd);
+  const fc=fcDeals.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0);
+  const wr=closed.length>0?Math.round(won.length/closed.length*100):0;
+  const ticket=won.length>0?won.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0)/won.length:0;
+  const today=now.toDateString();
+  const todayActs=D.activities.filter(a=>new Date(a.CREATED).toDateString()===today&&allowedIds.has(a.RESPONSIBLE_ID));
+  const overdue=D.activities.filter(a=>a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)<now&&allowedIds.has(a.RESPONSIBLE_ID));
+
+  const noFup=open.filter(d=>{
+    const did=String(d.ID);
+    const lid=String(d.LEAD_ID||'');
+    // Check FUP on deal itself OR on originating lead
+    const hasDealFup=D.activities.some(a=>String(a.OWNER_ID)===did&&String(a.OWNER_TYPE_ID)==='2'&&a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>now);
+    const hasLeadFup=lid?D.activities.some(a=>String(a.OWNER_ID)===lid&&String(a.OWNER_TYPE_ID)==='1'&&a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>now):false;
+    return !hasDealFup&&!hasLeadFup;
+  });
+
+  const slaMs=CFG.slaHours*3600000;
+  // SLA: skip outbound sources
+  const slaVio=D.leads.filter(l=>{
+    if(l.STATUS_ID==='CONVERTED'||l.STATUS_ID==='JUNK') return false;
+    if(!allowedIds.has(l.ASSIGNED_BY_ID)) return false;
+    if(isOutbound(l)) return false; // outbound exception
+    const hasAct=D.activities.find(a=>a.OWNER_ID===l.ID&&a.OWNER_TYPE_ID==='1'&&a.COMPLETED==='Y');
+    if(hasAct) return false;
+    const cd=new Date(l.DATE_CREATE),cday=cd.getDay(),chr=cd.getHours();
+    const endH=cday===5?17:18;
+    let slaStart=new Date(cd);
+    if(!(cday>=1&&cday<=5&&chr>=8&&chr<endH)){
+      slaStart=new Date(cd); slaStart.setHours(8,0,0,0);
+      if(cday===6) slaStart.setDate(slaStart.getDate()+2);
+      else if(cday===0) slaStart.setDate(slaStart.getDate()+1);
+      else if(chr>=endH) slaStart.setDate(slaStart.getDate()+(cday===5?3:1));
+    }
+    return slaStart<=now&&(now-slaStart)>slaMs;
+  });
+
+  const unattended=D.leads.filter(l=>{
+    if(l.STATUS_ID==='CONVERTED'||l.STATUS_ID==='JUNK') return false;
+    if(!allowedIds.has(l.ASSIGNED_BY_ID)) return false;
+    if(isOutbound(l)) return false;
+    return !D.activities.some(a=>String(a.OWNER_ID)===String(l.ID)&&String(a.OWNER_TYPE_ID)==='1');
+  });
+
+  const stalled=open.filter(d=>(d._daysInStage||0)>10);
+  const closingSoon=open.filter(d=>{
+    if(!d.CLOSEDATE) return false;
+    const dc=(new Date(d.CLOSEDATE)-now)/864e5;
+    const la=d._lastAct?(now-new Date(d._lastAct))/864e5:999;
+    return dc<=7&&dc>=-1&&la>2;
+  });
+
+  // Declined with reactivation potential
+  const declined=D.deals.filter(d=>isDeclined(d)&&allowedIds.has(d.ASSIGNED_BY_ID));
+
+  return {open,closed,won,lost,pipe,fc,fcDeals,wr,ticket,todayActs,overdue,noFup,slaVio,unattended,stalled,closingSoon,declined};
+}
+
+function userMetrics(uid){
+  const now=new Date();
+  const today=now.toDateString();
+  const ua=D.activities.filter(a=>a.RESPONSIBLE_ID===uid);
+  const ta=ua.filter(a=>new Date(a.CREATED).toDateString()===today);
+  const ud=D.deals.filter(d=>d.ASSIGNED_BY_ID===uid&&d.CLOSED!=='Y'&&d.STAGE_ID!=='LOSE');
+  const noF=ud.filter(d=>{
+    const did=String(d.ID);
+    const lid=String(d.LEAD_ID||'');
+    const hasFup=D.activities.some(a=>(String(a.OWNER_ID)===did&&String(a.OWNER_TYPE_ID)==='2'||String(a.OWNER_ID)===lid&&String(a.OWNER_TYPE_ID)==='1')&&a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>now);
+    return !hasFup;
+  });
+  const slaV=D.leads.filter(l=>{
+    if(l.ASSIGNED_BY_ID!==uid) return false;
+    if(l.STATUS_ID==='CONVERTED'||l.STATUS_ID==='JUNK') return false;
+    const has=D.activities.find(a=>a.OWNER_ID===l.ID&&a.OWNER_TYPE_ID==='1'&&a.COMPLETED==='Y');
+    return (now-new Date(l.DATE_CREATE))>CFG.slaHours*3600000&&!has;
+  });
+  // TYPE_ID confirmado via crm.enum.activitytype:
+  // 1=Reunião(interna), 2=Chamada(VoIP ligação), 3=Tarefa, 4=E-mail, 5=Atividade, 6=Ação do usuário
+  // Ligações VoIP aparecem como TYPE_ID=2 com SUBJECT "Feita para +55..."
+  // Acionamentos (contatos) aparecem como TYPE_ID=6 "Ação do usuário" / "Contatar cliente"
+  const tid=(a)=>String(a.TYPE_ID||'');
+  const isCall=(a)=>tid(a)==='2'||tid(a)==='10'||a._isCall===true; // 2=VoIP chamada
+  const isMeeting=(a)=>tid(a)==='1'; // 1=Reunião
+  const isChat=(a)=>tid(a)==='6';    // 6=Ação usuário (WhatsApp, canal aberto, contato)
+  const isFup=(a)=>['3','4','5','6'].includes(tid(a))||a._isTask; // 3=Tarefa,4=Email,5=Ativ,6=Ação
+  const isAcionamento=(a)=>isCall(a)||isChat(a)||isMeeting(a);
+
+  const yest=new Date(now-864e5).toDateString();
+  const yestCompleted=ua.filter(a=>{
+    const d=new Date(a.END_TIME||a.CREATED);
+    return d.toDateString()===yest&&(a.COMPLETED==='Y'||a.COMPLETED===true);
+  });
+  const todayCompleted=ta.filter(a=>a.COMPLETED==='Y'||a.COMPLETED===true||a.COMPLETED==='1');
+  // Debug count for this user (visible in console)
+  if(ua.length>0) console.log(`[${uid}] total:${ua.length} today:${ta.length} done:${todayCompleted.length}`);
+
+  return{
+    acion:todayCompleted.filter(isAcionamento).length+voipToday.length, // acionamentos hoje
+    acionConcluido:todayCompleted.length,             // acionamentos efetivos hoje
+    calls:todayCompleted.filter(isCall).length+voipToday.length, // TYPE_ID=2 + voximplant
+    chats:todayCompleted.filter(isChat).length,       // TYPE_ID=6 Ação usuário/contatos
+    meetings:ta.filter(isMeeting).length,
+    fups:yestCompleted.filter(isFup).length,
+    fupsPending:ua.filter(a=>a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>now&&isFup(a)).length,
+    dealsAtivos:ud.length,
+    noFup:noF.length,
+    sla:slaV.length
+  };
+}
+
+// ══════════════════════════════════════
+// ALERTS ENGINE
+// ══════════════════════════════════════
+function buildAlerts(){
+  ALERTS=[];
+  const m=metrics();
+  const now=new Date();
+
+  // CRÍTICO: leads sem contato (inbound only)
+  if(m.unattended.length>0) ALERTS.push({sev:'critical',id:'no_contact',
+    title:`${m.unattended.length} lead(s) sem nenhuma tentativa de contato`,
+    desc:m.unattended.slice(0,3).map(l=>l.TITLE).join(', ')+(m.unattended.length>3?` +${m.unattended.length-3}`:''),
+    action:'Acionar imediatamente. Primeiros 5 min = 21× mais conversão.'});
+
+  // CRÍTICO: SLA violado (outbound excluído)
+  if(m.slaVio.length>0) ALERTS.push({sev:'critical',id:'sla_vio',
+    title:`${m.slaVio.length} lead(s) fora do SLA de ${CFG.slaHours}h`,
+    desc:`Leads inbound sem contato após ${CFG.slaHours}h. Outbound excluído desta regra.`,
+    action:'Cobrar responsável ou redistribuir agora.'});
+
+  // CRÍTICO: closedate próximo sem atividade
+  if(m.closingSoon.length>0) ALERTS.push({sev:'critical',id:'close_soon',
+    title:`${m.closingSoon.length} deal(s) com closedate ≤7 dias sem atividade`,
+    desc:m.closingSoon.map(d=>`${d.TITLE} (${fc(d.OPPORTUNITY)})`).slice(0,2).join(' · '),
+    action:'Contato urgente hoje. Risco alto de perda de timing.'});
+
+  // ALTO: deals sem FUP
+  if(m.noFup.length>0) ALERTS.push({sev:'high',id:'no_fup',
+    title:`${m.noFup.length} deal(s) sem follow-up programado`,
+    desc:m.noFup.slice(0,3).map(d=>d.TITLE).join(', ')+(m.noFup.length>3?` +${m.noFup.length-3}`:''),
+    action:'Todo deal deve ter próxima ação agendada antes de encerrar o dia.'});
+
+  // ALTO: deals parados
+  if(m.stalled.length>0) ALERTS.push({sev:'high',id:'stalled',
+    title:`${m.stalled.length} deal(s) parado(s) na mesma etapa há mais de 10 dias`,
+    desc:m.stalled.slice(0,3).map(d=>`${d.TITLE} (${d._daysInStage}d)`).join(', '),
+    action:'Diagnóstico individual: avançar ou declarar como perdido.'});
+
+  // ALTO: atividades vencidas
+  if(m.overdue.length>0) ALERTS.push({sev:'high',id:'overdue',
+    title:`${m.overdue.length} follow-up(s) vencido(s) sem conclusão`,
+    desc:'Atividades com prazo passado e status pendente.',
+    action:'Concluir ou reagendar. Sinal de baixa disciplina comercial.'});
+
+  // ALTO: oportunidades quentes sem ação recente (heat score alto + sem FUP)
+  const hotNoAction=m.open.filter(d=>{
+    const hs=heatScore(d,'deal');
+    const hasFup=D.activities.find(a=>a.OWNER_ID===d.ID&&a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>now);
+    const la=d._lastAct?(now-new Date(d._lastAct))/864e5:999;
+    return hs>=70&&!hasFup&&la>3;
+  });
+  if(hotNoAction.length>0) ALERTS.push({sev:'high',id:'hot_no_action',
+    title:`${hotNoAction.length} oportunidade(s) quente(s) sem ação nos últimos 3 dias`,
+    desc:hotNoAction.slice(0,2).map(d=>d.TITLE).join(' · '),
+    action:'Dinheiro na mesa. Priorizar contato hoje.'});
+
+  // MÉDIO: win rate baixo
+  if(m.wr<30&&m.closed.length>=5) ALERTS.push({sev:'medium',id:'winrate',
+    title:`Win rate em ${m.wr}% — abaixo de 30%`,
+    desc:`${m.won.length} ganhos, ${m.lost.length} perdidos nos últimos 60 dias.`,
+    action:'Revisar padrão dos perdidos. Problema de qualificação ou proposta?'});
+
+  // MÉDIO: leads com FUP previsto não concluído ontem
+  const yesterday=new Date(now-864e5);
+  const missedFups=D.activities.filter(a=>{
+    const dl=new Date(a.DEADLINE||0);
+    return a.COMPLETED!=='Y'&&dl>new Date(yesterday.setHours(0,0,0,0))&&dl<now;
+  });
+  if(missedFups.length>0) ALERTS.push({sev:'medium',id:'missed_fups',
+    title:`${missedFups.length} follow-up(s) previstos ontem não foram concluídos`,
+    desc:'Cadência quebrada. Impacta conversão e percepção do cliente.',
+    action:'Concluir hoje ou reagendar com justificativa.'});
+
+  // MÉDIO: declinados com alto potencial esquecidos
+  const reactivable=m.declined.filter(d=>{
+    const ds=declineScore(d);
+    const la=d._lastAct?(now-new Date(d._lastAct))/864e5:999;
+    return ds>=65&&la>21;
+  });
+  if(reactivable.length>0) ALERTS.push({sev:'medium',id:'reactivable',
+    title:`${reactivable.length} declinado(s) com alto potencial de reativação esquecidos`,
+    desc:reactivable.slice(0,2).map(d=>d.TITLE).join(' · '),
+    action:'Abordar com nova proposta consultiva. Timing ou budget podem ter mudado.'});
+
+  return ALERTS;
+}
+
+// ══════════════════════════════════════
+// RENDER — HEATMAP
+// ══════════════════════════════════════
+function rHeatmap(){
+  const m=metrics();
+  const now=new Date();
+  const items=[...m.open,...D.leads.filter(l=>l.STATUS_ID!=='CONVERTED'&&l.STATUS_ID!=='JUNK'&&l.STATUS_ID!=='LOSE')];
+  const scored=items.map(e=>({...e,_hs:heatScore(e,''),_type:e.STAGE_ID?'deal':'lead'})).sort((a,b)=>b._hs-a._hs);
+
+  const kpiData=[
+    {l:'Muito Quentes',v:scored.filter(e=>e._hs>=75).length,c:'kpi-r'},
+    {l:'Quentes',v:scored.filter(e=>e._hs>=55&&e._hs<75).length,c:'kpi-a'},
+    {l:'Mornas',v:scored.filter(e=>e._hs>=35&&e._hs<55).length,c:'kpi-b'},
+    {l:'Frias',v:scored.filter(e=>e._hs<35).length,c:'kpi-p'}
+  ];
+  document.getElementById('kpi-heat').innerHTML=kpiData.map(k=>`<div class="kpi ${k.c}"><div class="kpi-label">${k.l}</div><div class="kpi-val">${k.v}</div><div class="kpi-sub">oportunidades</div></div>`).join('');
+
+  const card=e=>{
+    const u=userById(e.ASSIGNED_BY_ID);
+    const uname=u?`${u.NAME} ${u.LAST_NAME||''}`:'—';
+    const la=e._lastAct||e.LAST_ACTIVITY_TIME;
+    const laDays=la?Math.round((now-new Date(la))/864e5):null;
+    const cls=`heat-${heatClass(e._hs)}`;
+    const lbl=heatLabel(e._hs);
+    const hasFup=D.activities.find(a=>a.OWNER_ID===e.ID&&a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>now);
+    const action=hasFup?`FUP: ${fd(hasFup.DEADLINE)}`:'⚠ Sem FUP — agendar agora';
+    return `<div class="heat-card ${cls}">
+      <div class="heat-temp">${lbl} · ${e._hs}pts</div>
+      <div class="heat-name" title="${e.TITLE}">${e.TITLE}</div>
+      <div class="heat-meta">${uname} · ${laDays!==null?laDays+'d s/ contato':'sem atividade'} · ${D.stages[e.STAGE_ID]?.NAME||e.STATUS_ID||'Lead'}</div>
+      <div class="heat-action">${action}</div>
+    </div>`;
+  };
+
+  ['mq','q','m','f'].forEach(cls=>{
+    const min={mq:75,q:55,m:35,f:0}[cls];
+    const max={mq:101,q:75,m:55,f:35}[cls];
+    const subset=scored.filter(e=>e._hs>=min&&e._hs<max);
+    document.getElementById(`heat-${cls}`).innerHTML=subset.map(card).join('')||`<div class="empty"><p>Nenhuma oportunidade nesta faixa</p></div>`;
+  });
+}
+
+// ══════════════════════════════════════
+// RENDER — FORECAST QUALITATIVO
+// ══════════════════════════════════════
+function rForecast(){
+  const now=new Date();
+  const m=metrics();
+
+  // Comex: stage with "decisão" or "tomada" in name
+  const comexDeals=m.open.filter(d=>{
+    const sn=(D.stages[d.STAGE_ID]?.NAME||'').toLowerCase();
+    return /decis|tomada|fechar|aprovação|cadas/.test(sn);
+  });
+
+  // Corretora: stage with "primeiro fechamento" or "aguardando" 
+  const corretoraDeals=m.open.filter(d=>{
+    const sn=(D.stages[d.STAGE_ID]?.NAME||'').toLowerCase();
+    return /aguardando|primeiro fech|corretora|seguro/.test(sn);
+  });
+
+  function buBlock(deals, meta, buName, elId){
+    if(!document.getElementById(elId)) return;
+    const total=deals.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0);
+    const strong=deals.filter(d=>heatScore(d,'')>=65);
+    const moderate=deals.filter(d=>heatScore(d,'')>=45&&heatScore(d,'')<65);
+    const fragile=deals.filter(d=>heatScore(d,'')<45);
+    const strongVal=strong.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0);
+    const modVal=moderate.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0);
+    const fragVal=fragile.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0);
+
+    let qual='fq-fragil'; let qualLabel='Frágil';
+    if(strongVal/Math.max(total,1)>0.6){ qual='fq-forte'; qualLabel='Forte'; }
+    else if(strongVal/Math.max(total,1)>0.35){ qual='fq-moderado'; qualLabel='Moderado'; }
+
+    const pct=meta>0?Math.round(total/meta*100):0;
+    const dealRows=deals.slice(0,6).map(d=>{
+      const u=userById(d.ASSIGNED_BY_ID);
+      const hs=heatScore(d,'');
+      const hcls=heatClass(hs);
+      const la=d._lastAct?(now-new Date(d._lastAct))/864e5:null;
+      return `<tr>
+        <td style="font-size:12px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.TITLE}</td>
+        <td style="font-size:12px;color:var(--t2)">${u?u.NAME:'—'}</td>
+        <td><span class="val-cell">${fc(d.OPPORTUNITY)}</span></td>
+        <td><span style="font-size:10px;font-weight:700;padding:2px 6px;border-radius:4px;background:var(--heat-${hcls},var(--s3));color:var(--t1)">${heatLabel(hs)}</span></td>
+        <td style="font-size:12px;color:${la>5?'var(--red)':'var(--t2)'}">${la!==null?la+'d':'—'}</td>
+      </tr>`;
+    }).join('');
+
+    const reading = deals.length===0
+      ? 'Nenhum negócio nesta etapa de forecast ainda.'
+      : `${buName} tem ${fc(total)} em forecast (${pct}% da meta de ${fc(meta)}). `
+        + (strongVal>0?`${fc(strongVal)} em deals quentes (${Math.round(strongVal/Math.max(total,1)*100)}% do total). `:'')
+        + (fragVal/Math.max(total,1)>0.4?`Atenção: ${Math.round(fragVal/Math.max(total,1)*100)}% do pipeline está frio — risco real de não concluir. `:'')
+        + (pct>=80?'Pipeline saudável. Manter cadência.':pct>=50?'Abaixo da meta. Acelerar negociações e buscar deals de curto prazo.':'Pipeline insuficiente. Intervenção necessária esta semana.');
+
+    document.getElementById(elId).innerHTML=`
+      <div class="fc-bu">
+        <div class="fc-bu-header">
+          <div class="fc-bu-name">${buName}</div>
+          <span class="fc-qual-badge ${qual}">Forecast ${qualLabel}</span>
+        </div>
+        <div class="fc-stats">
+          <div class="fc-stat"><div class="fc-stat-n" style="color:var(--green)">${fc(strongVal)}</div><div class="fc-stat-l">Forte (quente)</div></div>
+          <div class="fc-stat"><div class="fc-stat-n" style="color:var(--amber)">${fc(modVal)}</div><div class="fc-stat-l">Moderado</div></div>
+          <div class="fc-stat"><div class="fc-stat-n" style="color:var(--red)">${fc(fragVal)}</div><div class="fc-stat-l">Frágil (frio)</div></div>
+        </div>
+        ${deals.length>0?`<div class="tbl-wrap" style="margin-bottom:.75rem"><table class="tbl"><thead><tr><th>Deal</th><th>Resp.</th><th>Valor</th><th>Temp.</th><th>Últ. ativ.</th></tr></thead><tbody>${dealRows}</tbody></table></div>`:''}
+        <div class="fc-reading">${reading}</div>
+      </div>`;
+  }
+
+  const kpiData=[
+    {l:'Comex Pipeline',v:fc(comexDeals.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0)),c:'kpi-g',s:`${comexDeals.length} deals`},
+    {l:'Corretora Pipeline',v:fc(corretoraDeals.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0)),c:'kpi-b',s:`${corretoraDeals.length} deals`},
+    {l:'Meta Comex',v:METAS.comex>0?`${Math.round(comexDeals.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0)/METAS.comex*100)}%`:'—',c:'kpi-a',s:'do forecast'},
+    {l:'Meta Corretora',v:METAS.corretora>0?`${Math.round(corretoraDeals.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0)/METAS.corretora*100)}%`:'—',c:'kpi-p',s:'do forecast'}
+  ];
+  document.getElementById('kpi-fc').innerHTML=kpiData.map(k=>`<div class="kpi ${k.c}"><div class="kpi-label">${k.l}</div><div class="kpi-val">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('');
+
+  buBlock(comexDeals, METAS.comex, 'Negócios Saygo Comex', 'fc-bu-comex');
+  buBlock(corretoraDeals, METAS.corretora, 'Saygo Corretora', 'fc-bu-corretora');
+}
+
+// ══════════════════════════════════════
+// RENDER — DECLINADOS
+// ══════════════════════════════════════
+function rDeclinados(){
+  const m=metrics();
+  const now=new Date();
+  const scored=m.declined.map(d=>({...d,_ds:declineScore(d)})).sort((a,b)=>b._ds-a._ds);
+
+  const kpiData=[
+    {l:'Total Declinados',v:scored.length,c:'kpi-r',s:'últimos 60 dias'},
+    {l:'Alto Potencial',v:scored.filter(d=>d._ds>=65).length,c:'kpi-g',s:'reativação'},
+    {l:'Potencial Médio',v:scored.filter(d=>d._ds>=45&&d._ds<65).length,c:'kpi-a',s:'abordagem consultiva'},
+    {l:'Já Esfriaram',v:scored.filter(d=>d._ds<45).length,c:'kpi-p',s:'baixa chance'}
+  ];
+  document.getElementById('kpi-decl').innerHTML=kpiData.map(k=>`<div class="kpi ${k.c}"><div class="kpi-label">${k.l}</div><div class="kpi-val">${k.v}</div><div class="kpi-sub">${k.s}</div></div>`).join('');
+
+  const card=d=>{
+    const u=userById(d.ASSIGNED_BY_ID);
+    const la=d._lastAct||d.LAST_ACTIVITY_TIME;
+    const laDays=la?Math.round((now-new Date(la))/864e5):null;
+    const score=d._ds;
+    const cls=score>=65?'dc-alto':score>=45?'dc-medio':'dc-baixo';
+    const lbl=score>=65?'Alto potencial':score>=45?'Médio':'Baixo';
+    const reason=d.COMMENTS?d.COMMENTS.slice(0,80)+'...':'Motivo não registrado';
+    const isReativ=score>=65;
+    return `<div class="declined-card ${isReativ?'dc-reativ':'dc-frio'}">
+      <div class="dc-body">
+        <div class="dc-name" title="${d.TITLE}">${d.TITLE}</div>
+        <div class="dc-meta">${u?u.NAME:'—'} · ${fc(d.OPPORTUNITY)} · ${laDays!==null?laDays+'d sem contato':'—'}</div>
+        <div class="dc-reason">${reason}</div>
+      </div>
+      <span class="dc-score ${cls}">${lbl}</span>
+    </div>`;
+  };
+
+  document.getElementById('decl-alto').innerHTML=scored.filter(d=>d._ds>=65).map(card).join('')||'<div class="empty"><p>Nenhum</p></div>';
+  document.getElementById('decl-medio').innerHTML=scored.filter(d=>d._ds>=45&&d._ds<65).map(card).join('')||'<div class="empty"><p>Nenhum</p></div>';
+  document.getElementById('decl-baixo').innerHTML=scored.filter(d=>d._ds<45).map(card).join('')||'<div class="empty"><p>Nenhum</p></div>';
+}
+
+// ══════════════════════════════════════
+// RENDER — DAILY POR PESSOA
+// ══════════════════════════════════════
+function rDailyPessoa(){
+  const allowed=allowedUsers();
+  if(!allowed.length){ document.getElementById('person-views-container').innerHTML='<div class="empty"><p>Nenhum usuário do time encontrado no Bitrix24</p></div>'; return; }
+
+  const now=new Date();
+  const today=now.toDateString();
+  const yesterday=new Date(now-864e5).toDateString();
+
+  // Build tabs
+  document.getElementById('person-tabs').innerHTML=allowed.map((u,i)=>{
+    const role=personRole(u);
+    const roleLabel={comex:'Comex',corretora:'Corretora',sdr:'SDR',closer:'Closer',parcerias:'Parcerias'}[role]||role||'';
+    return `<button class="ptab${i===0?' active':''}" onclick="showPerson('${u.ID}')">${u.NAME} <span style="font-size:10px;opacity:.6">${roleLabel}</span></button>`;
+  }).join('');
+
+  // Build each person view
+  document.getElementById('person-views-container').innerHTML=allowed.map((u,i)=>{
+    const uid=u.ID;
+    const role=personRole(u);
+    const uname=`${u.NAME} ${u.LAST_NAME||''}`;
+
+    const ua=(D._actsByUser&&D._actsByUser[uid])||D.activities.filter(a=>a.RESPONSIBLE_ID===uid);
+    const todayActs=ua.filter(a=>new Date(a.CREATED).toDateString()===today);
+    const yestActs=ua.filter(a=>new Date(a.CREATED).toDateString()===yesterday&&a.COMPLETED==='Y');
+    const todayCalls=todayActs.filter(a=>a.TYPE_ID==='1').length;
+    const yestCalls=yestActs.filter(a=>a.TYPE_ID==='1').length;
+    const todayMeetings=todayActs.filter(a=>a.TYPE_ID==='2').length;
+    const yestFups=yestActs.filter(a=>a.TYPE_ID==='6'||a.TYPE_ID==='4').length;
+
+    // Deals for this person (filter by role/pipeline)
+    let myDeals=D.deals.filter(d=>d.ASSIGNED_BY_ID===uid&&isActive(d));
+    const myLeads=D.leads.filter(l=>l.ASSIGNED_BY_ID===uid&&l.STATUS_ID!=='CONVERTED'&&l.STATUS_ID!=='JUNK');
+
+    // Pipeline filter by role
+    if(role==='corretora') myDeals=myDeals.filter(d=>isPipelineCorretora(d));
+    else if(role==='comex'||role==='sdr') myDeals=myDeals.filter(d=>!isPipelineCorretora(d));
+
+    const noFup=myDeals.filter(d=>!D.activities.find(a=>a.OWNER_ID===d.ID&&a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>now));
+    const prevToday=ua.filter(a=>a.DEADLINE&&new Date(a.DEADLINE).toDateString()===today&&a.COMPLETED!=='Y');
+    const prevYestNotDone=ua.filter(a=>a.DEADLINE&&new Date(a.DEADLINE).toDateString()===yesterday&&a.COMPLETED!=='Y');
+
+    // Conversions
+    const myClosedDeals=D.deals.filter(d=>d.ASSIGNED_BY_ID===uid&&d.CLOSED==='Y');
+    const myWon=myClosedDeals.filter(d=>d.STAGE_ID==='WON'||d._won);
+    const wrPct=myClosedDeals.length>0?Math.round(myWon.length/myClosedDeals.length*100):0;
+    const wrMeta=role==='sdr'?20:30;
+    const wrClass=wrPct>=wrMeta?'good':wrPct>=wrMeta*0.7?'warn':'bad';
+
+    const myClosedLeads=D.leads.filter(l=>l.ASSIGNED_BY_ID===uid&&l.STATUS_ID==='CONVERTED');
+    const myTotalLeads=D.leads.filter(l=>l.ASSIGNED_BY_ID===uid);
+    const lrPct=myTotalLeads.length>0?Math.round(myClosedLeads.length/myTotalLeads.length*100):0;
+    const lrClass=lrPct>=20?'good':lrPct>=12?'warn':'bad';
+
+    // Meta mensal
+    const metaBase=role==='corretora'?METAS.corretora:METAS.comex;
+    const realizadoVal=myWon.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0);
+    const metaPct=metaBase>0?Math.round(realizadoVal/metaBase*100):0;
+    const metaClass=metaPct>=80?'good':metaPct>=50?'warn':'bad';
+
+    // Hot deals
+    const hotDeals=myDeals.map(d=>({...d,_hs:heatScore(d,'')})).filter(d=>d._hs>=65).sort((a,b)=>b._hs-a._hs).slice(0,4);
+
+    // SDR-specific: meetings generated
+    const meetingsGenerated=myLeads.filter(l=>{
+      const sn=(l.STATUS_ID||'').toLowerCase();
+      return /reuniao|reunião|agendada|agendado/.test(sn)||sn==='appointment';
+    }).length;
+
+    // AI-style reading
+    const prodScore=todayCalls>=5?'alta':todayCalls>=2?'normal':'baixa';
+    const fupDiscipline=noFup.length===0?'excelente':noFup.length<=2?'atenção necessária':'crítica';
+    const aiReading=`<strong>${uname}</strong>: Produtividade <strong>${prodScore}</strong> hoje (${todayCalls} ligações). `
+      +`Disciplina de FUP <strong>${fupDiscipline}</strong> (${noFup.length} deals sem próxima ação). `
+      +(prevYestNotDone.length>0?`${prevYestNotDone.length} atividade(s) de ontem não concluída(s) — risco de cadência quebrada. `:'')
+      +(hotDeals.length>0?`${hotDeals.length} oportunidade(s) quente(s) na carteira — priorizar contato hoje. `:'Nenhuma oportunidade quente no momento. ')
+      +(wrPct<wrMeta?`Conversão abaixo da meta (${wrPct}% vs ${wrMeta}%meta) — revisar abordagem. `:'');
+
+    // SDR extras
+    const sdrBlock=role==='sdr'?`
+      <div class="daily-block">
+        <div class="daily-block-title">📞 Resultados SDR</div>
+        <div class="meta-row"><div class="meta-label">Ligações hoje</div><div class="meta-val">${todayCalls}</div></div>
+        <div class="meta-row"><div class="meta-label">FUPs concluídos ontem</div><div class="meta-val">${yestFups}</div></div>
+        <div class="meta-row"><div class="meta-label">Reuniões agendadas</div><div class="meta-val">${meetingsGenerated}</div></div>
+        <div class="meta-row"><div class="meta-label">Leads sem FUP previsto</div><div class="meta-val ${noFup.length>0?'bad':''}">${noFup.length}</div></div>
+      </div>`:'';
+
+    // Corretora extra: cadastro stage
+    const cadastroBlock=role==='corretora'?`
+      <div class="daily-block">
+        <div class="daily-block-title">📋 Avanço para Cadastro</div>
+        <div class="meta-row"><div class="meta-label">Em fase de Cadastro</div>
+          <div class="meta-val">${myDeals.filter(d=>(D.stages[d.STAGE_ID]?.NAME||'').toLowerCase().includes('cadas')).length}</div>
+        </div>
+      </div>`:'';
+
+    // Lucas parcerias
+    const colabLeads=D.leads.filter(l=>l.ASSIGNED_BY_ID===uid&&(l.UF_CRM_LEAD_TYPE||'').toLowerCase().includes('colab'));
+
+    return `<div class="person-view${i===0?' active':''}" id="pv-${uid}">
+      <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))">
+        <div class="kpi kpi-b"><div class="kpi-label">Ligações hoje</div><div class="kpi-val">${todayCalls}</div><div class="kpi-sub">${yestCalls} ontem</div></div>
+        <div class="kpi kpi-g"><div class="kpi-label">Deals ativos</div><div class="kpi-val">${myDeals.length}</div><div class="kpi-sub">${noFup.length} sem FUP</div></div>
+        <div class="kpi ${lrClass==='good'?'kpi-g':lrClass==='warn'?'kpi-a':'kpi-r'}"><div class="kpi-label">Conv. leads</div><div class="kpi-val">${lrPct}%</div><div class="kpi-sub">meta 20%</div></div>
+        <div class="kpi ${wrClass==='good'?'kpi-g':wrClass==='warn'?'kpi-a':'kpi-r'}"><div class="kpi-label">Win rate</div><div class="kpi-val">${wrPct}%</div><div class="kpi-sub">meta ${wrMeta}%</div></div>
+        ${metaBase>0?`<div class="kpi ${metaClass==='good'?'kpi-g':metaClass==='warn'?'kpi-a':'kpi-r'}"><div class="kpi-label">Meta mensal</div><div class="kpi-val">${metaPct}%</div><div class="kpi-sub">${fc(realizadoVal)} / ${fc(metaBase)}</div></div>`:''}
+      </div>
+
+      ${sdrBlock}${cadastroBlock}
+
+      <div class="daily-block">
+        <div class="daily-block-title">📅 Agenda do dia</div>
+        ${(()=>{
+          // Merge calendar events + pending activities for today
+          const calToday=(D.calEvents||[]).filter(e=>e.RESPONSIBLE_ID===uid||e.UF_MEETING_RESPONSIBLE===uid);
+          const agendaItems=[
+            ...calToday.map(e=>({label:e.NAME||'Evento',time:e.DATE_FROM||''})),
+            ...prevToday.map(a=>({label:a.SUBJECT||'Atividade',time:a.DEADLINE||''}))
+          ].sort((a,b)=>new Date(a.time)-new Date(b.time));
+          return agendaItems.length>0
+            ? agendaItems.map(i=>`<div class="meta-row"><div class="meta-label">${i.label}</div><div class="meta-val" style="font-size:11px">${i.time?fd(i.time):''}</div></div>`).join('')
+            : '<div style="font-size:13px;color:var(--t3);padding:.5rem 0">Nenhuma atividade programada para hoje</div>';
+        })()}
+      </div>
+
+      ${prevYestNotDone.length>0?`<div class="daily-block" style="border-left:3px solid var(--red)">
+        <div class="daily-block-title" style="color:var(--red)">⚠ Não concluídos ontem (${prevYestNotDone.length})</div>
+        ${prevYestNotDone.map(a=>`<div class="meta-row"><div class="meta-label">${a.SUBJECT||'Atividade'}</div><div class="meta-val bad">Atrasado</div></div>`).join('')}
+      </div>`:''}
+
+      ${noFup.length>0?`<div class="daily-block" style="border-left:3px solid var(--amber)">
+        <div class="daily-block-title" style="color:var(--amber)">Deals sem FUP (${noFup.length})</div>
+        ${noFup.slice(0,6).map(d=>`<div class="meta-row"><div class="meta-label" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.TITLE}</div><span class="stage-pill" style="font-size:10px;background:var(--amber-d);color:var(--amber)">${D.stages[d.STAGE_ID]?.NAME||d.STAGE_ID}</span></div>`).join('')}
+      </div>`:''}
+
+      ${hotDeals.length>0?`<div class="daily-block">
+        <div class="daily-block-title" style="color:var(--amber)">🔥 Oportunidades quentes — priorizar hoje</div>
+        ${hotDeals.map(d=>{
+          const la=d._lastAct?(now-new Date(d._lastAct))/864e5:null;
+          return `<div class="meta-row"><div class="meta-label" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.TITLE}</div><div style="display:flex;gap:6px;align-items:center"><span class="val-cell">${fc(d.OPPORTUNITY)}</span><span style="font-size:11px;color:var(--t3)">${la!==null?la+'d':'—'}</span></div></div>`;
+        }).join('')}
+      </div>`:''}
+
+      <div class="ai-reading">${aiReading}</div>
+    </div>`;
+  }).join('');
+
+  loadMetas();
+}
+
+function showPerson(uid){
+  document.querySelectorAll('.ptab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.person-view').forEach(v=>v.classList.remove('active'));
+  const u=D.users.find(x=>x.ID===uid);
+  if(!u) return;
+  const tabs=document.getElementById('person-tabs').querySelectorAll('.ptab');
+  const allowed=allowedUsers();
+  const idx=allowed.findIndex(x=>x.ID===uid);
+  if(tabs[idx]) tabs[idx].classList.add('active');
+  const pv=document.getElementById(`pv-${uid}`);
+  if(pv) pv.classList.add('active');
+}
+
+// ══════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════
+function renderAll(){
+  const m=metrics();
+  buildAlerts();
+  rKPIDaily(m); rKPIPipe(m);
+  rAlerts(); rProdTable(m); rPipeTable(m); rCharts(m);
+  rHeatmap(); rForecast(); rDeclinados(); rDailyPessoa();
+  updateBadges();
+  document.getElementById('last-sync').textContent=new Date().toLocaleTimeString('pt-BR');
+  loadCfgForm(); loadMetas();
+  const haWa=CFG.wa.type!=='none';
+  const waBtn=document.getElementById('btn-wa-send');
+  if(waBtn) waBtn.style.display=haWa?'inline-flex':'none';
+}
+
+function rKPIDaily(m){
+  const items=[
+    {l:'Pipeline Total',v:fc(m.pipe),s:`${m.open.length} deals`,c:'kpi-g'},
+    {l:'Forecast Mês',v:fc(m.fc),s:`${m.fcDeals.length} fechando`,c:'kpi-b'},
+    {l:'Win Rate 30d',v:m.wr+'%',s:`${m.won.length}G/${m.lost.length}P`,c:m.wr>=30?'kpi-g':'kpi-r'},
+    {l:'Ticket Médio',v:fc(m.ticket),s:'nos ganhos',c:'kpi-p'},
+    {l:'Sem FUP',v:m.noFup.length,s:'deals sem ação',c:m.noFup.length>5?'kpi-r':'kpi-a'},
+    {l:'SLA Violado',v:m.slaVio.length,s:`leads>${CFG.slaHours}h`,c:m.slaVio.length>0?'kpi-r':'kpi-g'},
+    {l:'Parados',v:m.stalled.length,s:'acima do tempo médio',c:m.stalled.length>3?'kpi-a':'kpi-g'},
+    {l:'Atividades Hoje',v:m.todayActs.length,s:`${m.overdue.length} vencidas`,c:'kpi-b'}
+  ];
+  document.getElementById('kpi-daily').innerHTML=items.map(k=>`
+    <div class="kpi ${k.c}">
+      <div class="kpi-label">${k.l}</div>
+      <div class="kpi-val">${k.v}</div>
+      <div class="kpi-sub">${k.s}</div>
+    </div>`).join('');
+}
+
+function rKPIPipe(m){
+  const items=[
+    {l:'Pipeline Total',v:fc(m.pipe),s:`${m.open.length} deals`,c:'kpi-g'},
+    {l:'Forecast',v:fc(m.fc),s:'fecha este mês',c:'kpi-b'},
+    {l:'Sem FUP',v:m.noFup.length,s:'deals sem ação',c:m.noFup.length>3?'kpi-r':'kpi-a'},
+    {l:'Parados',v:m.stalled.length,s:'na mesma etapa',c:'kpi-a'}
+  ];
+  document.getElementById('kpi-pipe').innerHTML=items.map(k=>`
+    <div class="kpi ${k.c}">
+      <div class="kpi-label">${k.l}</div>
+      <div class="kpi-val">${k.v}</div>
+      <div class="kpi-sub">${k.s}</div>
+    </div>`).join('');
+}
+
+function rAlerts(){
+  const sorted=[...ALERTS].sort((a,b)=>{const o={critical:0,high:1,medium:2,low:3};return o[a.sev]-o[b.sev];});
+  const html=a=>` <div class="alert-item">
+      <div class="alert-dot dot-${a.sev}"></div>
+      <div class="alert-body">
+        <div class="alert-title-txt">${a.title}</div>
+        <div class="alert-desc-txt">${a.desc}</div>
+        <div class="alert-action-txt">→ ${a.action}</div>
+      </div>
+      <span class="badge badge-${a.sev==='critical'?'critical':a.sev==='high'?'high':'medium'}">${a.sev==='critical'?'CRÍTICO':a.sev==='high'?'ALTO':'MÉDIO'}</span>
+    </div>`;
+  const crits=sorted.filter(a=>a.sev==='critical');
+  document.getElementById('alerts-daily').innerHTML=crits.slice(0,4).map(html).join('')||'<div class="empty"><div>✅</div><p>Nenhum alerta crítico. Bom trabalho!</p></div>';
+  document.getElementById('crit-count').textContent=crits.length;
+  document.getElementById('alerts-full').innerHTML=sorted.map(html).join('')||'<div class="empty"><div>✅</div><p>Nenhum alerta ativo.</p></div>';
+}
+
+function rProdTable(m){
+  const maxA=Math.max(...D.users.map(u=>userMetrics(u.ID).acion),1);
+  const colors=['#00d49a','#4888f0','#9860f0','#f0a020','#f04848'];
+  const rows=allowedUsers().map((u,i)=>{
+    const um=userMetrics(u.ID);
+    const pct=Math.round(um.acion/maxA*100);
+    const bc=pct>60?'#00d49a':pct>30?'#f0a020':'#f04848';
+    const ini=(u.NAME[0]+(u.LAST_NAME?.[0]||'')).toUpperCase();
+    return `<tr>
+      <td><div class="name-cell"><div class="avatar" style="background:${colors[i%5]}">${ini}</div>${u.NAME} ${u.LAST_NAME||''}</div></td>
+      <td><div>${um.acion}</div><div class="mini-bar-bg"><div class="mini-bar-fill" style="width:${pct}%;background:${bc}"></div></div></td>
+      <td>${um.chats||0}</td><td>${um.calls}</td><td>${um.meetings}</td><td>${um.fups}</td><td>${um.dealsAtivos}</td>
+      <td class="${um.noFup>3?'num-bad':um.noFup>1?'num-warn':''}">${um.noFup}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('prod-tbody').innerHTML=rows||'<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--t3)">Nenhum usuário</td></tr>';
+}
+
+function rPipeTable(m){
+  const now=new Date();
+  const allowedIds2=new Set(allowedUsers().map(u=>u.ID));
+  const sorted=[...m.open].filter(d=>allowedIds2.has(d.ASSIGNED_BY_ID)).sort((a,b)=>{
+    const rA=(!D.activities.find(x=>x.OWNER_ID===a.ID&&x.COMPLETED!=='Y'&&x.DEADLINE&&new Date(x.DEADLINE)>now)?2:0)+(a._daysInStage>10?1:0);
+    const rB=(!D.activities.find(x=>x.OWNER_ID===b.ID&&x.COMPLETED!=='Y'&&x.DEADLINE&&new Date(x.DEADLINE)>now)?2:0)+(b._daysInStage>10?1:0);
+    return rB-rA;
+  });
+
+  const rows=sorted.map(d=>{
+    const u=D.users.find(x=>x.ID===d.ASSIGNED_BY_ID);
+    const un=u?`${u.NAME} ${u.LAST_NAME||''}`:'—';
+    const st=D.stages[d.STAGE_ID];
+    const sn=st?.NAME||d.STAGE_ID;
+    const sc=st?.COLOR||'#5a5856';
+    const dis=d._daysInStage||0;
+    const dc=dis>14?'bad':dis>7?'warn':'ok';
+    const la=d._lastAct?Math.round((now-new Date(d._lastAct))/864e5):null;
+    const fup=D.activities.find(a=>a.OWNER_ID===d.ID&&a.OWNER_TYPE_ID==='2'&&a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>now);
+    const risk=!fup&&dis>10?'🔴 Alto':dis>7||!fup?'🟡 Médio':'🟢 Baixo';
+    return `<tr>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${d.TITLE}"><strong style="font-size:13px">${d.TITLE}</strong></td>
+      <td><span class="stage-pill" style="background:${sc}22;color:${sc};border:1px solid ${sc}44;font-size:10px;font-weight:700">${sn}</span></td>
+      <td style="font-size:12px;color:var(--t2)">${un}</td>
+      <td><span class="val-cell">${fc(d.OPPORTUNITY)}</span></td>
+      <td><span class="days-pill days-${dc}">${dis}d</span></td>
+      <td style="font-size:12px;color:${la>5?'var(--red)':'var(--t2)'}">${la!==null?la+'d atrás':'—'}</td>
+      <td>${fup?`<span style="color:var(--green);font-size:11px;font-weight:600">✅ ${fd(fup.DEADLINE)}</span>`:`<span style="color:var(--red);font-size:11px;font-weight:700">⚠ Sem FUP</span>`}</td>
+      <td style="font-size:12px">${risk}</td>
+    </tr>`;
+  }).join('');
+  document.getElementById('pipe-tbody').innerHTML=rows||'<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--t3)">Nenhum deal em aberto</td></tr>';
+}
+
+function rCharts(m){
+  const labels=D.users.map(u=>u.NAME);
+  const acion=D.users.map(u=>userMetrics(u.ID).acion);
+  const calls=D.users.map(u=>userMetrics(u.ID).calls);
+
+  if(CHARTS.prod) CHARTS.prod.destroy();
+  CHARTS.prod=new Chart(document.getElementById('ch-prod'),{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:'Acionamentos',data:acion,backgroundColor:'rgba(0,212,154,.7)',borderRadius:3},
+      {label:'Ligações',data:calls,backgroundColor:'rgba(72,136,240,.7)',borderRadius:3}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'#9a9890',font:{size:11}}}},
+      scales:{x:{ticks:{color:'#9a9890'},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#9a9890'},grid:{color:'rgba(255,255,255,.04)'}}}}
+  });
+
+  // Funnel
+  const fn=[
+    {l:'Leads',n:D.leads.length},
+    {l:'Qualificação',n:m.open.filter(d=>['PREPARATION','PREPAYMENT_INVOICE','EXECUTING','FINAL_INVOICE'].includes(d.STAGE_ID)).length+m.closed.length},
+    {l:'Proposta',n:m.open.filter(d=>['PREPAYMENT_INVOICE','EXECUTING','FINAL_INVOICE'].includes(d.STAGE_ID)).length+m.closed.length},
+    {l:'Negociação',n:m.open.filter(d=>['EXECUTING','FINAL_INVOICE'].includes(d.STAGE_ID)).length+m.closed.length},
+    {l:'Ganhos',n:m.won.length}
+  ];
+  const mx=fn[0].n||1;
+  document.getElementById('funnel-viz').innerHTML=fn.map(f=>`
+    <div class="funnel-row">
+      <div class="funnel-lbl">${f.l}</div>
+      <div class="funnel-bar-bg"><div class="funnel-bar-fill" style="width:${Math.round(f.n/mx*100)}%">${f.n>0?Math.round(f.n/mx*100)+'%':''}</div></div>
+      <div class="funnel-n">${f.n}</div>
+    </div>`).join('');
+
+  // Stage chart
+  const sg={};
+  m.open.forEach(d=>{const sn=D.stages[d.STAGE_ID]?.NAME||d.STAGE_ID;sg[sn]=(sg[sn]||0)+parseFloat(d.OPPORTUNITY||0);});
+  if(CHARTS.stages) CHARTS.stages.destroy();
+  CHARTS.stages=new Chart(document.getElementById('ch-stages'),{
+    type:'doughnut',
+    data:{labels:Object.keys(sg),datasets:[{data:Object.values(sg),backgroundColor:['#00d49a','#4888f0','#9860f0','#f0a020','#f04848','#00a0d4'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'right',labels:{color:'#9a9890',font:{size:11},padding:8}},
+        tooltip:{callbacks:{label:c=>` ${c.label}: ${fc(c.raw)}` }}}}
+  });
+
+  // Win rate
+  if(CHARTS.win) CHARTS.win.destroy();
+  CHARTS.win=new Chart(document.getElementById('ch-win'),{
+    type:'doughnut',
+    data:{labels:['Ganhos','Perdidos'],datasets:[{data:[m.won.length,m.lost.length],backgroundColor:['rgba(0,212,154,.8)','rgba(240,72,72,.8)'],borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'65%',
+      plugins:{legend:{labels:{color:'#9a9890',font:{size:12}}}}}
+  });
+}
+
+function updateBadges(){
+  const c=ALERTS.filter(a=>a.sev==='critical').length;
+  const b=document.getElementById('alert-badge');
+  b.textContent=c; b.style.display=c>0?'inline':'none';
+  document.getElementById('crit-count').textContent=c;
+}
+
+// ══════════════════════════════════════
+// AI ANALYSIS
+// ══════════════════════════════════════
+async function runAI(){
+  const btn=document.getElementById('btn-ai');
+  if(!CFG.claudeKey){ toast('Configure a Claude API Key em Config','err'); return; }
+  btn.textContent='Analisando...'; btn.disabled=true;
+
+  const m=metrics();
+  const ctx={
+    data_hora: new Date().toLocaleString('pt-BR'),
+    pipeline:{
+      valor_total:m.pipe, deals_abertos:m.open.length, forecast_mes:m.fc,
+      win_rate_pct:m.wr, ticket_medio:m.ticket,
+      deals_sem_fup:m.noFup.length, deals_parados:m.stalled.length,
+      sla_violado:m.slaVio.length, leads_sem_contato:m.unattended.length
+    },
+    alertas_ativos:ALERTS.map(a=>({severidade:a.sev,titulo:a.title})),
+    deals_criticos:m.open.filter(d=>d._daysInStage>7||!D.activities.find(a=>a.OWNER_ID===d.ID&&a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>new Date())).slice(0,8).map(d=>({
+      titulo:d.TITLE,
+      etapa:D.stages[d.STAGE_ID]?.NAME||d.STAGE_ID,
+      valor:d.OPPORTUNITY,
+      dias_na_etapa:d._daysInStage,
+      dias_sem_atividade:d._lastAct?Math.round((new Date()-new Date(d._lastAct))/864e5):null,
+      tem_fup:!!D.activities.find(a=>a.OWNER_ID===d.ID&&a.COMPLETED!=='Y'&&a.DEADLINE&&new Date(a.DEADLINE)>new Date())
+    })),
+    produtividade_time:D.users.map(u=>{const um=userMetrics(u.ID);return{nome:`${u.NAME} ${u.LAST_NAME||''}`,acionamentos:um.acion,ligacoes:um.calls,reunioes:um.meetings,deals_ativos:um.dealsAtivos,deals_sem_fup:um.noFup,sla_violado:um.sla}})
+  };
+
+  try{
+    const r=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-api-key':CFG.claudeKey,'anthropic-version':'2023-06-01'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-6',max_tokens:2000,
+        system:`Você é um analista comercial sênior especializado em operações B2B consultivas no Brasil, com foco em câmbio, habilitação de radar de importação/exportação e SaaS B2B.
+
+Você receberá dados reais do CRM da operação e deve gerar 3-4 insights acionáveis.
+
+Quando houver transcript_signals disponíveis, USE as transcrições das ligações para enriquecer a análise. Sinais de transcrição revelam: interesse real, objeções, menções a concorrentes, urgência, timing, e conversas que o CRM não captura em campos estruturados. Cite o que ouviu na transcrição quando relevante.
+
+REGRAS ABSOLUTAS:
+1. Cite sempre números específicos dos dados recebidos — nunca generalize
+2. Cada insight deve ter uma ação com: QUEM faz, O QUE faz, ATÉ QUANDO
+3. Priorize impacto em receita — quantifique em R$ quando possível
+4. Escreva como um gestor experiente na daily, não como relatório corporativo
+5. Se detectar padrão entre os dados (ex: mesmo vendedor em vários problemas), aponte
+6. Seja direto — sem rodeios, sem linguagem evasiva
+
+FORMATO DE SAÍDA — JSON puro, sem markdown, sem código de bloco:
+{"daily_brief":"2-3 frases diretas resumindo o estado da operação","insights":[{"prioridade":1,"tipo":"risco|oportunidade|processo|forecast","titulo":"max 70 chars","situacao":"dados específicos + números","impacto":"valor R$ ou % de risco","acao":"QUEM: ... | O QUÊ: ... | ATÉ: ..."}]}`,
+        messages:[{role:'user',content:`Analise estes dados da operação e gere insights:\n\n${JSON.stringify(ctx,null,2)}`}]
+      })
+    });
+
+    const data=await r.json();
+    if(!r.ok) throw new Error(data.error?.message||'Erro na API');
+    let txt=data.content[0].text.replace(/```json|```/g,'').trim();
+    const parsed=JSON.parse(txt);
+    renderInsights(parsed);
+    toast('Análise gerada com sucesso!','ok');
+  }catch(e){
+    toast('Erro na IA: '+e.message+'. Gerando análise local.','err');
+    renderLocalInsights(metrics());
+  }
+  btn.textContent='Gerar Análise'; btn.disabled=false;
+}
+
+function renderInsights(d){
+  const icons={risco:'⚠️',oportunidade:'🎯',processo:'🔧',forecast:'📊'};
+  const names={risco:'RISCO',oportunidade:'OPORTUNIDADE',processo:'PROCESSO',forecast:'FORECAST'};
+  let html='';
+  if(d.daily_brief) html+=`<div class="insight-card" style="border-left-color:var(--blue)">
+    <div class="insight-head"><div class="insight-title">📋 Briefing da Daily — ${new Date().toLocaleDateString('pt-BR')}</div></div>
+    <div class="insight-body">${d.daily_brief}</div></div>`;
+  if(d.insights) html+=d.insights.map(i=>`
+    <div class="insight-card">
+      <div class="insight-head">
+        <div class="insight-title">${icons[i.tipo]||'📌'} ${i.titulo||i.title}</div>
+        <span class="badge" style="background:var(--purple-d);color:var(--purple)">#${i.prioridade||i.priority} ${names[i.tipo||i.type]||'INSIGHT'}</span>
+      </div>
+      <div class="insight-body"><strong>Situação:</strong> ${i.situacao||i.situation}<br><br><strong>Impacto:</strong> ${i.impacto||i.impact}</div>
+      <div class="insight-action"><span class="ia-lbl">Ação</span><span>${i.acao||i.action}</span></div>
+    </div>`).join('');
+  document.getElementById('ai-output').innerHTML=html;
+}
+
+function renderLocalInsights(m){
+  const insights=[];
+  if(m.noFup.length>3) insights.push({prioridade:1,tipo:'processo',
+    titulo:`${m.noFup.length} deals sem follow-up comprometem ${fc(m.noFup.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0))} em pipeline`,
+    situacao:`${m.noFup.length} deals ativos não têm nenhuma próxima atividade agendada. Sem FUP, a probabilidade de estagnação aumenta 3×.`,
+    impacto:`${fc(m.noFup.reduce((s,d)=>s+parseFloat(d.OPPORTUNITY||0),0))} em risco direto`,
+    acao:'TODOS os vendedores | Criar atividade futura em cada deal sem FUP | ATÉ: hoje antes de encerrar o dia'});
+  if(m.slaVio.length>0) insights.push({prioridade:2,tipo:'risco',
+    titulo:`${m.slaVio.length} leads violando SLA de ${CFG.slaHours}h sem contato`,
+    situacao:`Leads que entraram há mais de ${CFG.slaHours}h sem nenhum contato registrado. Cada hora adicional reduz conversão em ~10%.`,
+    impacto:'Conversão sendo perdida em tempo real',
+    acao:'Responsável de cada lead | Primeiro contato imediato | ATÉ: agora'});
+  if(m.wr<30&&m.closed.length>=5) insights.push({prioridade:3,tipo:'forecast',
+    titulo:`Win rate de ${m.wr}% — 1 em cada ${Math.round(100/Math.max(m.wr,1))} deals está sendo fechado`,
+    situacao:`${m.won.length} ganhos contra ${m.lost.length} perdidos nos últimos 30 dias. Taxa abaixo do benchmark de mercado B2B (30-40%).`,
+    impacto:`Para chegar a 35% de win rate seriam necessários ${Math.max(0,Math.round(m.closed.length*.35)-m.won.length)} ganhos adicionais`,
+    acao:'Gestor | Revisar motivos de perda dos últimos 5 deals perdidos e identificar padrão | ATÉ: esta semana'});
+  renderInsights({
+    daily_brief:`${ALERTS.filter(a=>a.sev==='critical').length} alertas críticos ativos. Pipeline total de ${fc(m.pipe)} com ${m.open.length} deals. Forecast do mês: ${fc(m.fc)}. Win rate: ${m.wr}%.`,
+    insights
+  });
+}
+
+// ══════════════════════════════════════
+// WHATSAPP
+// ══════════════════════════════════════
+async function sendAllAlerts(){
+  if(CFG.wa.type==='none'){ toast('Configure WhatsApp em Config → WhatsApp','err'); return; }
+  const crits=ALERTS.filter(a=>a.sev==='critical'||a.sev==='high');
+  if(crits.length===0){ toast('Nenhum alerta crítico/alto para enviar','ok'); return; }
+
+  const msg=`🚨 *Sales Intel — Alertas ${new Date().toLocaleString('pt-BR')}*\n\n`
+    +crits.map((a,i)=>`${i+1}. ${a.sev==='critical'?'🔴':'🟡'} *${a.title}*\n${a.desc}\n→ ${a.action}`).join('\n\n');
+
+  try{
+    await sendWa(msg);
+    toast(`Alertas enviados para WhatsApp!`,'ok');
+  }catch(e){
+    toast('Erro ao enviar: '+e.message,'err');
+  }
+}
+
+async function sendWa(msg){
+  if(CFG.wa.type==='callmebot'){
+    const encoded=encodeURIComponent(msg);
+    await fetch(`https://api.callmebot.com/whatsapp.php?phone=${CFG.wa.phone}&text=${encoded}&apikey=${CFG.wa.cbKey}`);
+  }else if(CFG.wa.type==='evolution'){
+    const nums=CFG.wa.evoNums.length>0?CFG.wa.evoNums:[CFG.wa.phone].filter(Boolean);
+    for(const num of nums){
+      await fetch(`${CFG.wa.evoUrl}/message/sendText/${CFG.wa.evoInst}`,{
+        method:'POST',
+        headers:{'Content-Type':'application/json','apikey':CFG.wa.evoKey},
+        body:JSON.stringify({number:num,text:msg})
+      });
+      await sleep(300);
+    }
+  }
+}
+
+async function testWa(){
+  if(CFG.wa.type==='none'){ toast('Configure o WhatsApp primeiro','err'); return; }
+  try{
+    await sendWa('✅ *Sales Intel* — Teste de conexão bem-sucedido!\n\n'+new Date().toLocaleString('pt-BR'));
+    toast('Mensagem de teste enviada!','ok');
+  }catch(e){ toast('Erro: '+e.message,'err'); }
+}
+
+// Auto-send alerts every hour
+function startAlertTimer(){
+  if(alertTimer) clearInterval(alertTimer);
+  alertTimer=setInterval(async()=>{
+    if(CFG.wa.type!=='none'){
+      buildAlerts();
+      const crits=ALERTS.filter(a=>a.sev==='critical');
+      if(crits.length>0) await sendAllAlerts();
+    }
+  },3600000); // 1 hour
+}
+
+// ══════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════
+function loadCfgForm(){
+  const f=(id,val)=>{const el=document.getElementById(id);if(el)el.value=val||'';};
+  f('cfg-url',CFG.url); f('cfg-token',CFG.token); f('cfg-claude',CFG.claudeKey);
+  f('cfg-sla',CFG.slaHours); f('cfg-dq',CFG.daysQual); f('cfg-dp',CFG.daysProp);
+  f('cfg-dn',CFG.daysNeg); f('cfg-dg',CFG.ghostDays);
+  const wt=document.getElementById('cfg-wa-type');
+  if(wt){ wt.value=CFG.wa.type; toggleWaCfg(); }
+  f('cfg-wa-phone',CFG.wa.phone); f('cfg-wa-cbkey',CFG.wa.cbKey);
+  f('cfg-wa-evo-url',CFG.wa.evoUrl); f('cfg-wa-evo-inst',CFG.wa.evoInst);
+  f('cfg-wa-evo-key',CFG.wa.evoKey);
+  const nt=document.getElementById('cfg-wa-evo-nums');
+  if(nt) nt.value=(CFG.wa.evoNums||[]).join('\n');
+}
+
+function saveCfg(){
+  CFG.url=(document.getElementById('cfg-url').value||'').trim().replace(/\/$/,'');
+  CFG.token=(document.getElementById('cfg-token').value||'').trim();
+  CFG.claudeKey=(document.getElementById('cfg-claude').value||'').trim();
+  CFG.slaHours=parseInt(document.getElementById('cfg-sla').value)||4;
+  if(CFG.url&&CFG.token){
+    isDemo=false;
+    toast('Conectando ao Bitrix24...','ok');
+    fetchAll();
+  } else {
+    toast('Configurações salvas!','ok');
+    renderAll();
+  }
+}
+
+function saveAlertCfg(){
+  CFG.daysQual=parseInt(document.getElementById('cfg-dq').value)||7;
+  CFG.daysProp=parseInt(document.getElementById('cfg-dp').value)||3;
+  CFG.daysNeg=parseInt(document.getElementById('cfg-dn').value)||2;
+  CFG.ghostDays=parseInt(document.getElementById('cfg-dg').value)||30;
+  renderAll(); toast('Thresholds atualizados!','ok');
+}
+
+function saveWaCfg(){
+  CFG.wa.type=document.getElementById('cfg-wa-type').value;
+  CFG.wa.phone=(document.getElementById('cfg-wa-phone')?.value||'').trim();
+  CFG.wa.cbKey=(document.getElementById('cfg-wa-cbkey')?.value||'').trim();
+  CFG.wa.evoUrl=(document.getElementById('cfg-wa-evo-url')?.value||'').trim();
+  CFG.wa.evoInst=(document.getElementById('cfg-wa-evo-inst')?.value||'').trim();
+  CFG.wa.evoKey=(document.getElementById('cfg-wa-evo-key')?.value||'').trim();
+  CFG.wa.evoNums=(document.getElementById('cfg-wa-evo-nums')?.value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+  toast('WhatsApp salvo!','ok');
+  startAlertTimer();
+  renderAll();
+}
+
+async function runDiag(){
+  const dealId=(document.getElementById('diag-deal-id')?.value||'').trim();
+  const out=document.getElementById('diag-output');
+  if(!dealId||!CFG.url||!CFG.token){ out.style.display='block'; out.textContent='Preencha o ID do deal e certifique-se de estar conectado ao Bitrix24.'; return; }
+  out.style.display='block';
+  out.textContent='Buscando...';
+  try{
+    // Test activity list for this deal
+    const acts=await bCall(CFG.url,CFG.token,'crm.activity.list',{
+      filter:{'OWNER_ID':dealId,'OWNER_TYPE_ID':'2'},
+      select:['ID','TYPE_ID','RESPONSIBLE_ID','COMPLETED','CREATED','END_TIME','SUBJECT','PROVIDER_TYPE_ID']
+    });
+    // Test tasks
+    let tasks={result:{tasks:[]}};
+    try{ tasks=await bCall(CFG.url,CFG.token,'tasks.task.list',{filter:{'UF_CRM_TASK':'D_'+dealId},select:['ID','TITLE','STATUS','CREATED_DATE','CLOSED_DATE']}); }catch(e){}
+    // Test timeline
+    let timeline={result:[]};
+    try{ timeline=await bCall(CFG.url,CFG.token,'crm.timeline.comment.list',{filter:{'ENTITY_ID':dealId,'ENTITY_TYPE':'deal'}}); }catch(e){}
+
+    const actTotal=acts.total||0;
+    const actItems=acts.result||[];
+    const taskItems=(tasks.result?.tasks||tasks.result)||[];
+    const tlItems=timeline.result||[];
+
+    let txt=`=== DIAGNÓSTICO DEAL #${dealId} ===
+
+`;
+    txt+=`crm.activity.list: ${actTotal} total, ${actItems.length} retornados
+`;
+    if(actItems.length>0){
+      txt+=`Exemplos de TYPE_ID encontrados: ${[...new Set(actItems.map(a=>a.TYPE_ID))].join(', ')}
+`;
+      txt+=`
+Primeiras atividades:
+`;
+      actItems.slice(0,5).forEach(a=>{
+        txt+=`  ID:${a.ID} TYPE:${a.TYPE_ID} COMPLETED:${a.COMPLETED} CREATED:${(a.CREATED||'').slice(0,10)} SUB:${(a.SUBJECT||'sem título').slice(0,40)}
+`;
+      });
+    } else {
+      txt+=`⚠️ Nenhuma atividade retornada por crm.activity.list
+`;
+      txt+=`
+>> POSSÍVEL CAUSA: as atividades podem estar ligadas a LEADS e não a DEALS.
+`;
+      txt+=`>> Tente verificar se o deal tem atividades visíveis no Bitrix24.
+`;
+    }
+
+    txt+=`
+tasks.task.list: ${taskItems.length} tarefas
+`;
+    txt+=`crm.timeline: ${tlItems.length} itens
+`;
+    txt+=`
+Total de atividades em memória: ${D.activities.length}
+`;
+    txt+=`Atividades para este deal em memória: ${D.activities.filter(a=>String(a.OWNER_ID)===String(dealId)).length}
+`;
+
+    if(D.activities.length===0){
+      txt+=`
+⚠️ D.activities está vazio — o fetch pode ter falhado silenciosamente.
+`;
+      txt+=`Tente sincronizar novamente e observe o loading.`;
+    }
+
+    out.textContent=txt;
+  }catch(e){
+    out.textContent='Erro: '+e.message;
+  }
+}
+
+async function runUserDiag(){
+  const out=document.getElementById('diag-output');
+  out.style.display='block';
+  out.textContent='Analisando usuários e atividades...\n';
+
+  const now=new Date();
+  const today=now.toDateString();
+  const yest=new Date(now-864e5).toDateString();
+
+  let txt='=== TIME + ATIVIDADES EM MEMÓRIA ===\n\n';
+
+  if(D.users.length===0){
+    txt+='⚠️ Nenhum usuário carregado. Sincronize primeiro.\n';
+    out.textContent=txt; return;
+  }
+
+  txt+=`Total usuários Bitrix: ${D.users.length}\n`;
+  txt+=`Usuários do time (filtrado): ${allowedUsers().length}\n`;
+  txt+=`Total atividades em memória: ${D.activities.length}\n\n`;
+
+  // Count activities per user
+  const byUser={};
+  const byUserToday={};
+  const byUserYest={};
+  D.activities.forEach(a=>{
+    const uid=a.RESPONSIBLE_ID;
+    if(!uid) return;
+    byUser[uid]=(byUser[uid]||0)+1;
+    const d=new Date(a.END_TIME||a.CREATED);
+    if(d.toDateString()===today) byUserToday[uid]=(byUserToday[uid]||0)+1;
+    if(d.toDateString()===yest) byUserYest[uid]=(byUserYest[uid]||0)+1;
+  });
+
+  txt+='--- USUÁRIOS DO TIME ---\n';
+  allowedUsers().forEach(u=>{
+    const total=byUser[u.ID]||0;
+    const td=byUserToday[u.ID]||0;
+    const yd=byUserYest[u.ID]||0;
+    const role=personRole(u);
+    txt+=`\n${u.NAME} ${u.LAST_NAME||''} (ID:${u.ID}) [${role}]\n`;
+    txt+=`  Total atividades: ${total}\n`;
+    txt+=`  Hoje: ${td} | Ontem: ${yd}\n`;
+    if(total===0) txt+=`  ⚠️ Nenhuma atividade — verificar se ID do usuário bate com RESPONSIBLE_ID\n`;
+  });
+
+  txt+='\n--- TODOS OS USUÁRIOS BITRIX (para referência) ---\n';
+  D.users.forEach(u=>{
+    const total=byUser[u.ID]||0;
+    txt+=`  ID:${u.ID} ${u.NAME} ${u.LAST_NAME||''}: ${total} atividades\n`;
+  });
+
+  if(D.activities.length===0){
+    txt+='\n⚠️ D.activities vazio. Causas possíveis:\n';
+    txt+='  1. Sincronização não foi executada ainda\n';
+    txt+='  2. O webhook não tem permissão de atividades CRM\n';
+    txt+='  3. O fetch falhou silenciosamente (veja o console do browser)\n';
+    txt+='\nAbra o Console (F12) e procure mensagens de erro durante a sincronização.\n';
+  }
+
+  out.textContent=txt;
+}
+
+function exportCfg(){
+  const data=JSON.stringify(CFG,null,2);
+  const a=document.createElement('a');
+  a.href='data:application/json;charset=utf-8,'+encodeURIComponent(data);
+  a.download='salesintel-config.json';
+  a.click();
+  toast('Configurações exportadas!','ok');
+}
+
+function importCfg(e){
+  const file=e.target.files[0];
+  if(!file) return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      Object.assign(CFG,d);
+      loadCfgForm();
+      toast('Configurações importadas!','ok');
+    }catch{ toast('Arquivo inválido','err'); }
+  };
+  r.readAsText(file);
+}
+
+function downloadConfigured(){
+  // Get current HTML source and inject CFG
+  const script=`\n<script id="injected-cfg">window.__INJECTED_CFG=${JSON.stringify(CFG)};<\/script>\n`;
+  const html=document.documentElement.outerHTML.replace('</head>',script+'</head>');
+  const a=document.createElement('a');
+  a.href='data:text/html;charset=utf-8,'+encodeURIComponent(html);
+  a.download='sales_intel_configurado.html';
+  a.click();
+  toast('Arquivo baixado com suas configurações!','ok');
+}
+
+// ══════════════════════════════════════
+// UI HELPERS
+// ══════════════════════════════════════
+function showView(name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById('view-'+name);
+  if(el) el.classList.add('active');
+  const btn=document.querySelector(`[data-view="${name}"]`);
+  if(btn) btn.classList.add('active');
+}
+
+async function syncNow(){
+  const dot=document.getElementById('sync-dot');
+  dot.classList.add('spin');
+  if(isDemo){ await sleep(700); renderAll(); }
+  else await fetchAll();
+  dot.classList.remove('spin');
+}
+
+function showLoad(show,txt=''){
+  document.getElementById('loading').classList.toggle('hide',!show);
+  if(txt){ document.getElementById('load-txt').textContent=txt; document.getElementById('load-steps').textContent=''; }
+}
+
+function addStep(txt){
+  const el=document.getElementById('load-steps');
+  el.textContent+=(el.textContent?'\n':'')+txt;
+}
+
+function toast(msg,type='ok'){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.className=`toast ${type} show`;
+  setTimeout(()=>t.classList.remove('show'),4000);
+}
+
+function fc(v){ const n=parseFloat(v)||0; if(n>=1e6)return`R$${(n/1e6).toFixed(1)}M`; if(n>=1e3)return`R$${(n/1e3).toFixed(0)}K`; return`R$${Math.round(n)}`; }
+function fd(s){ if(!s)return'—'; try{return new Date(s).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})}catch{return'—';} }
+
+// ── Load injected config if available (for downloaded configured version)
+if(window.__INJECTED_CFG){
+  Object.assign(CFG,window.__INJECTED_CFG);
+  if(CFG.wa) {} // wa already merged
+  if(CFG.url && CFG.url !== 'demo' && CFG.token){
+    fetchAll();
+  }
+}
+</script>
+
+
+</body></
+</html>
